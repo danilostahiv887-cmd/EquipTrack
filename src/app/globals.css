@@ -17,4 +17,22 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .setup-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:8px; padding:0; margin:28px 0; list-style:none; }
 .setup-list li { border:1px solid var(--line); padding:12px; background:white; }
 .setup-note { font-size:.86rem; }
+.login-page { min-height:100svh; display:grid; grid-template-columns:minmax(280px,1.1fr) minmax(320px,.9fr); background:var(--graphite); }
+.login-aside { min-height:100%; padding:clamp(32px,7vw,112px); color:white; display:flex; flex-direction:column; justify-content:end; background:linear-gradient(135deg,transparent 0 72%,rgb(12 157 176 / 22%) 72% 74%,transparent 74%), var(--graphite); }
+.login-aside h1 { max-width:8ch; margin:12px 0 18px; font-size:clamp(3rem,7vw,6.5rem); line-height:.86; letter-spacing:-.08em; }
+.login-aside p:not(.eyebrow) { max-width:42ch; color:#c0c8c8; line-height:1.6; }
+.login-panel { padding:clamp(32px,7vw,112px); align-self:center; background:var(--porcelain); }
+.login-panel h2 { margin:12px 0 32px; font-size:clamp(2rem,4vw,3.6rem); letter-spacing:-.06em; }
+.login-form { display:grid; gap:20px; max-width:420px; }
+.form-field { display:grid; gap:7px; }
+.form-field label { font-weight:700; font-size:.9rem; }
+.form-field input { width:100%; border:1px solid var(--line); padding:13px 14px; background:white; border-radius:0; }
+.field-error,.form-error { margin:0; color:var(--danger); font-size:.85rem; line-height:1.4; }
+.form-error { border-left:3px solid var(--danger); padding-left:10px; }
+.primary-button { border:0; padding:14px 18px; background:var(--cyan); color:white; font-weight:800; text-align:left; transition:background .16s ease, transform .16s ease; }
+.primary-button:hover:not(:disabled) { background:#067e90; transform:translateX(3px); }
+.primary-button:disabled { opacity:.65; cursor:wait; }
+.workspace-empty { min-height:100svh; padding:clamp(28px,6vw,96px); background:var(--porcelain); }
+.workspace-empty h1 { margin:10px 0; font-size:clamp(2.2rem,5vw,4.8rem); letter-spacing:-.07em; }
+@media (max-width:760px) { .login-page { grid-template-columns:1fr; } .login-aside { min-height:40svh; padding:32px; } .login-aside h1 { font-size:3.2rem; } .login-panel { padding:40px 28px; } }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; animation:none!important; } }
