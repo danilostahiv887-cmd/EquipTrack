@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed": "tsx scripts/db-seed.ts",
+    "storage:setup": "tsx scripts/storage-setup.ts",
     "setup": "tsx scripts/setup.ts",
     "check": "npm run typecheck && npm run build"
   },
