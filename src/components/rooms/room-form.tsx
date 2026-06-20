@@ -1,0 +1,10 @@
+"use client";
+
+import { useActionState } from "react";
+import { createRoomAction, type RoomActionState } from "@/server/actions/rooms";
+
+const initial: RoomActionState = {};
+export function RoomForm({ buildings, types, users }: { buildings: Array<{ id: unknown; name: string }>; types: Array<{ id: unknown; name: string }>; users: Array<{ id: unknown; fullName?: string }> }) {
+  const [state, action, pending] = useActionState(createRoomAction, initial);
+  return <form noValidate action={action} className="passport-form"><div className="form-grid"><label>Номер<input name="number" aria-invalid={Boolean(state.fieldErrors?.number)} /></label><label>Корпус<select name="buildingId" defaultValue=""><option value="" disabled>Оберіть корпус</option>{buildings.map((entry) => <option key={String(entry.id)} value={String(entry.id)}>{entry.name}</option>)}</select></label><label>Тип<select name="roomTypeId" defaultValue=""><option value="" disabled>Оберіть тип</option>{types.map((entry) => <option key={String(entry.id)} value={String(entry.id)}>{entry.name}</option>)}</select></label><label>Відповідальна особа<select name="responsibleId" defaultValue=""><option value="">Не призначено</option>{users.map((entry) => <option key={String(entry.id)} value={String(entry.id)}>{entry.fullName}</option>)}</select></label><label>Поверх<input name="floor" inputMode="numeric" defaultValue="1" /></label><label>Місткість<input name="capacity" inputMode="numeric" defaultValue="20" /></label><label>Стан<select name="status" defaultValue="active"><option value="active">Активне</option><option value="inactive">Неактивне</option><option value="under_repair">У ремонті</option></select></label></div>{state.formError && <p className="form-error">{state.formError}</p>}{Object.values(state.fieldErrors ?? {}).map((error) => <p className="field-error" key={error}>{error}</p>)}<button className="primary-button" type="submit" disabled={pending}>{pending ? "Зберігаємо…" : "Створити приміщення"}</button></form>;
+}

@@ -1,0 +1,8 @@
+import { StatusBadge } from "@/components/ui/status-badge";
+import { money, recordId } from "@/lib/format";
+
+type Passport = { room: { number: string; floor: number; capacity: number; status: string; description?: string }; equipment: Array<{ id: unknown; name: string; inventoryNumber: string; condition: string; price?: number }>; movements: Array<Record<string, unknown>>; audits: Array<Record<string, unknown>> };
+export function RoomPassport({ data }: { data: Passport }) {
+  const total = data.equipment.reduce((sum, item) => sum + Number(item.price ?? 0), 0);
+  return <section className="passport"><div className="passport-title"><p className="eyebrow">ПАСПОРТ ПРИМІЩЕННЯ</p><h1>{data.room.number}</h1><StatusBadge status={data.room.status} /></div><div className="technical-strip"><span>Поверх <b>{data.room.floor}</b></span><span>Місткість <b>{data.room.capacity}</b></span><span>Обладнання <b>{data.equipment.length}</b></span><span>Вартість <b>{money.format(total)}</b></span></div><section><h2>Обладнання у приміщенні</h2><div className="compact-list">{data.equipment.map((item) => <div key={recordId(item.id)}><strong>{item.name}</strong><span>{item.inventoryNumber}</span><StatusBadge status={item.condition} /></div>)}{data.equipment.length === 0 && <p>Обладнання ще не призначено.</p>}</div></section><section><h2>Останні переміщення</h2><div className="timeline">{data.movements.map((item, index) => <p key={index}>{String(item.movementType ?? "Рух")} · {String(item.movementDate ?? "")}</p>)}{data.movements.length === 0 && <p>Історія переміщень відсутня.</p>}</div></section></section>;
+}
