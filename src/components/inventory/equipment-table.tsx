@@ -9,6 +9,7 @@ import type { EquipmentListItem, Reference } from "@/server/services/catalog";
 
 type References = {
   categories: Reference[];
+  suppliers: Reference[];
 };
 
 export function EquipmentTable({
@@ -52,6 +53,7 @@ export function EquipmentTable({
                   {[
                     item.manufacturer,
                     item.model,
+                    item.supplierName && `постач.: ${item.supplierName}`,
                     item.inventoryPreview && `інв.: ${item.inventoryPreview}`,
                   ]
                     .filter(Boolean)
@@ -81,6 +83,7 @@ export function EquipmentTable({
                       mode="edit"
                       equipment={item}
                       categories={references.categories}
+                      suppliers={references.suppliers}
                     />
                   </Dialog>
                   <form action={deleteEquipmentAction}>

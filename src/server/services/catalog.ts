@@ -28,6 +28,8 @@ export type EquipmentModel = {
   id: unknown;
   name: string;
   categoryId: string;
+  supplierId?: string | null;
+  supplierName?: string;
   manufacturer?: string;
   model?: string;
   price?: number;
@@ -45,6 +47,8 @@ export type EquipmentInstance = {
   serialNumber: string;
   currentRoomId: string;
   currentResponsibleId: string;
+  supplierId?: string | null;
+  supplierName?: string;
   status: string;
   condition: string;
   price?: number;
@@ -76,6 +80,14 @@ export type Reference = {
   name: string;
   number?: string;
   fullName?: string;
+  type?: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  note?: string;
+  equipmentCount?: number;
+  instanceCount?: number;
+  usageCount?: number;
 };
 export type MovementReferences = {
   equipment: Array<
@@ -144,9 +156,11 @@ export type EquipmentFilters = {
   condition?: string;
   categoryId?: string;
   roomId?: string;
+  supplierId?: string;
 };
 
-const idKey = (value: unknown) => normalizeRecordIdString(recordId(value));
+const idKey = (value: unknown) =>
+  value == null || value === "" ? "" : normalizeRecordIdString(recordId(value));
 const compact = (values: Array<string | undefined>) =>
   values.filter(Boolean).join(" · ");
 const unique = (values: string[]) => [...new Set(values.filter(Boolean))];
@@ -160,14 +174,21 @@ function withInstanceLabels(
   models: EquipmentModel[],
   rooms: Array<Pick<Room, "id" | "number" | "name">>,
   users: Reference[],
+  suppliers: Reference[] = [],
 ) {
   const modelsById = new Map(models.map((item) => [idKey(item.id), item]));
   const roomsById = new Map(rooms.map((item) => [idKey(item.id), item]));
   const usersById = new Map(users.map((item) => [idKey(item.id), item]));
+  const suppliersById = new Map(
+    suppliers.map((item) => [idKey(item.id), item]),
+  );
   return instances.map((item) => {
     const model = modelsById.get(idKey(item.equipmentId));
     const room = roomsById.get(idKey(item.currentRoomId));
     const user = usersById.get(idKey(item.currentResponsibleId));
+    const supplier =
+      suppliersById.get(idKey(item.supplierId)) ??
+      suppliersById.get(idKey(model?.supplierId));
     return {
       ...item,
       equipmentName: model?.name,
@@ -177,8 +198,22 @@ function withInstanceLabels(
       photoFileId: model?.photoFileId,
       roomLabel: roomLabel(room),
       responsibleLabel: user?.fullName,
+      supplierName: supplier?.name,
     };
   });
+}
+
+function withModelSupplierLabels(
+  models: EquipmentModel[],
+  suppliers: Reference[],
+) {
+  const suppliersById = new Map(
+    suppliers.map((item) => [idKey(item.id), item]),
+  );
+  return models.map((item) => ({
+    ...item,
+    supplierName: suppliersById.get(idKey(item.supplierId))?.name,
+  }));
 }
 
 function aggregateEquipment(
@@ -242,6 +277,13 @@ function aggregateEquipment(
         unique(rows.map((item) => item.roomLabel ?? ""))
           .slice(0, 3)
           .join("; ") || "Екземпляри ще не додано",
+      supplierName:
+        unique([
+          model.supplierName ?? "",
+          ...rows.map((item) => item.supplierName ?? ""),
+        ])
+          .slice(0, 2)
+          .join("; ") || undefined,
       inventoryPreview: unique(rows.map((item) => item.inventoryNumber))
         .slice(0, 3)
         .join("; "),
@@ -317,13 +359,24 @@ export async function getEquipment(
       SELECT * FROM equipment_instance ORDER BY inventoryNumber;
       SELECT id, number, name FROM room ORDER BY number;
       SELECT id, fullName FROM user ORDER BY fullName;
+      SELECT id, name, type FROM supplier ORDER BY name;
     `,
     );
-    const models = batchRows<EquipmentModel>(result, 0);
+    const suppliers = batchRows<Reference>(result, 4);
+    const models = withModelSupplierLabels(
+      batchRows<EquipmentModel>(result, 0),
+      suppliers,
+    );
     const rawInstances = batchRows<EquipmentInstance>(result, 1);
     const rooms = batchRows<Pick<Room, "id" | "number" | "name">>(result, 2);
     const users = batchRows<Reference>(result, 3);
-    const instances = withInstanceLabels(rawInstances, models, rooms, users);
+    const instances = withInstanceLabels(
+      rawInstances,
+      models,
+      rooms,
+      users,
+      suppliers,
+    );
     const rows = aggregateEquipment(models, instances);
     const needle = options.q?.trim().toLowerCase();
     const filtered = rows.filter((item) => {
@@ -345,6 +398,7 @@ export async function getEquipment(
           item.name,
           item.manufacturer,
           item.model,
+          item.supplierName,
           item.inventoryPreview,
           item.serialPreview,
           item.roomsSummary,
@@ -375,6 +429,17 @@ export async function getEquipment(
       )
         return false;
       if (
+        options.supplierId &&
+        normalizeRecordIdString(item.supplierId) !==
+          normalizeRecordIdString(options.supplierId) &&
+        !item.instances.some(
+          (instance) =>
+            normalizeRecordIdString(instance.supplierId) ===
+            normalizeRecordIdString(options.supplierId),
+        )
+      )
+        return false;
+      if (
         options.roomId &&
         !item.instances.some(
           (instance) =>
@@ -402,6 +467,9 @@ export async function getReferences() {
       SELECT id, name FROM category ORDER BY name;
       SELECT id, fullName FROM user WHERE status = 'active' ORDER BY fullName;
       SELECT id, number, name FROM room WHERE status = 'active' ORDER BY number;
+      SELECT id, name, type, contactPerson, phone, email, note FROM supplier ORDER BY name;
+      SELECT supplierId, count() AS total FROM equipment GROUP BY supplierId;
+      SELECT supplierId, count() AS total FROM equipment_instance GROUP BY supplierId;
     `,
     );
     const buildings = batchRows<Reference>(result, 0);
@@ -409,7 +477,38 @@ export async function getReferences() {
     const categories = batchRows<Reference>(result, 2);
     const users = batchRows<Reference>(result, 3);
     const rooms = batchRows<Reference>(result, 4);
-    return { buildings, types, categories, users, rooms };
+    const modelUsage = batchRows<{ supplierId?: string; total?: number }>(
+      result,
+      6,
+    );
+    const instanceUsage = batchRows<{ supplierId?: string; total?: number }>(
+      result,
+      7,
+    );
+    const modelUsageBySupplier = new Map(
+      modelUsage.map((item) => [
+        idKey(item.supplierId),
+        Number(item.total ?? 0),
+      ]),
+    );
+    const instanceUsageBySupplier = new Map(
+      instanceUsage.map((item) => [
+        idKey(item.supplierId),
+        Number(item.total ?? 0),
+      ]),
+    );
+    const suppliers = batchRows<Reference>(result, 5).map((item) => {
+      const key = idKey(item.id);
+      const equipmentCount = modelUsageBySupplier.get(key) ?? 0;
+      const instanceCount = instanceUsageBySupplier.get(key) ?? 0;
+      return {
+        ...item,
+        equipmentCount,
+        instanceCount,
+        usageCount: equipmentCount + instanceCount,
+      };
+    });
+    return { buildings, types, categories, users, rooms, suppliers };
   });
 }
 
@@ -561,10 +660,15 @@ export async function getRoomPassport(id: string) {
       SELECT * FROM movement WHERE fromRoomId = $id OR toRoomId = $id ORDER BY movementDate DESC LIMIT 8;
       SELECT * FROM audit WHERE roomId = $id ORDER BY createdAt DESC LIMIT 8;
       SELECT id, name, mimeType, size, kind, createdAt FROM file WHERE entityId = $id ORDER BY createdAt DESC;
+      SELECT id, name, type FROM supplier ORDER BY name;
     `,
       { id: textId },
     );
-    const models = batchRows<EquipmentModel>(result, 0);
+    const suppliers = batchRows<Reference>(result, 8);
+    const models = withModelSupplierLabels(
+      batchRows<EquipmentModel>(result, 0),
+      suppliers,
+    );
     const rawInstances = batchRows<EquipmentInstance>(result, 1);
     const users = batchRows<Reference>(result, 2);
     const rooms = batchRows<
@@ -574,7 +678,13 @@ export async function getRoomPassport(id: string) {
     const movementRows = batchRows<WorkflowRow>(result, 5);
     const audits = batchRows<Record<string, unknown>>(result, 6);
     const files = batchRows<AttachedFile>(result, 7);
-    const equipment = withInstanceLabels(rawInstances, models, rooms, users);
+    const equipment = withInstanceLabels(
+      rawInstances,
+      models,
+      rooms,
+      users,
+      suppliers,
+    );
     const lookup = buildLookupSet({
       equipmentModels: models,
       equipmentInstances: rawInstances,
@@ -609,6 +719,7 @@ export async function getEquipmentPassport(id: string, instanceQuery?: string) {
       SELECT id, fullName FROM user ORDER BY fullName;
       SELECT id, name FROM building ORDER BY name;
       SELECT id, name, mimeType, size, kind, createdAt FROM file WHERE entityId = $id ORDER BY createdAt DESC;
+      SELECT id, name, type FROM supplier ORDER BY name;
     `,
       { id: textId },
     );
@@ -619,11 +730,17 @@ export async function getEquipmentPassport(id: string, instanceQuery?: string) {
     const users = batchRows<Reference>(result, 2);
     const buildings = batchRows<Reference>(result, 3);
     const files = batchRows<AttachedFile>(result, 4);
+    const suppliers = batchRows<Reference>(result, 5);
+    const [equipmentWithSupplier] = withModelSupplierLabels(
+      [equipment],
+      suppliers,
+    );
     const instances = withInstanceLabels(
       rawInstances,
-      [equipment],
+      [equipmentWithSupplier],
       rooms,
       users,
+      suppliers,
     );
     const instanceIds = new Set(instances.map((item) => idKey(item.id)));
     const relatedResult = instanceIds.size
@@ -671,7 +788,7 @@ export async function getEquipmentPassport(id: string, instanceQuery?: string) {
       "movements",
     );
     return {
-      equipment,
+      equipment: equipmentWithSupplier,
       instances,
       filteredInstances,
       instanceQuery: instanceQuery ?? "",

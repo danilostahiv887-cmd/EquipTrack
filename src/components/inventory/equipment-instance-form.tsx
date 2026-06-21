@@ -29,6 +29,7 @@ type InstanceFormData = {
   serialNumber?: string;
   currentRoomId?: string;
   currentResponsibleId?: string;
+  supplierId?: string | null;
   status?: string;
   condition?: string;
   price?: number;
@@ -39,17 +40,21 @@ export function EquipmentInstanceForm({
   equipmentId,
   rooms,
   users,
+  suppliers = [],
   instance,
   defaultPrice,
   defaultAcquisitionDate,
+  defaultSupplierId,
   mode = "create",
 }: {
   equipmentId: string;
   rooms: Array<{ id: unknown; number?: string; name?: string }>;
   users: Array<{ id: unknown; fullName?: string }>;
+  suppliers?: Array<{ id: unknown; name: string; type?: string }>;
   instance?: InstanceFormData;
   defaultPrice?: number;
   defaultAcquisitionDate?: string;
+  defaultSupplierId?: string | null;
   mode?: "create" | "edit";
 }) {
   const [state, action, pending] = useActionState(
@@ -151,6 +156,29 @@ export function EquipmentInstanceForm({
             ))}
           </select>
           <FieldError errors={fieldErrors} name="responsibleId" />
+        </label>
+
+        <label className={labelClass(fieldErrors, "supplierId")}>
+          Постачальник / донор екземпляра
+          <select
+            name="supplierId"
+            defaultValue={valueOf(
+              state,
+              "supplierId",
+              instance?.supplierId ?? defaultSupplierId ?? "",
+            )}
+            className={fieldClass(fieldErrors, "supplierId")}
+            aria-invalid={invalid(fieldErrors, "supplierId")}
+          >
+            <option value="">Як у картці моделі / не вказано</option>
+            {suppliers.map((entry) => (
+              <option key={recordId(entry.id)} value={recordId(entry.id)}>
+                {entry.name}
+                {entry.type ? ` · ${entry.type}` : ""}
+              </option>
+            ))}
+          </select>
+          <FieldError errors={fieldErrors} name="supplierId" />
         </label>
 
         <label className={labelClass(fieldErrors, "status")}>

@@ -16,6 +16,7 @@ export default async function EquipmentPage({
     condition?: string;
     categoryId?: string;
     roomId?: string;
+    supplierId?: string;
   }>;
 }) {
   const search = await searchParams;
@@ -39,7 +40,10 @@ export default async function EquipmentPage({
         </div>
         {canManage && (
           <Dialog label="Створити картку" title="Нова картка обладнання">
-            <EquipmentForm categories={references.categories} />
+            <EquipmentForm
+              categories={references.categories}
+              suppliers={references.suppliers}
+            />
           </Dialog>
         )}
       </header>
@@ -52,6 +56,17 @@ export default async function EquipmentPage({
         <select name="categoryId" defaultValue={search.categoryId ?? ""}>
           <option value="">Усі категорії</option>
           {references.categories.map((item) => (
+            <option
+              key={String(item.id)}
+              value={String(item.id).replace(/^([^:]+):⟨(.+)⟩$/, "$1:$2")}
+            >
+              {item.name}
+            </option>
+          ))}
+        </select>
+        <select name="supplierId" defaultValue={search.supplierId ?? ""}>
+          <option value="">Усі постачальники</option>
+          {references.suppliers.map((item) => (
             <option
               key={String(item.id)}
               value={String(item.id).replace(/^([^:]+):⟨(.+)⟩$/, "$1:$2")}
@@ -92,7 +107,10 @@ export default async function EquipmentPage({
       </form>
       <EquipmentTable
         equipment={result.items}
-        references={{ categories: references.categories }}
+        references={{
+          categories: references.categories,
+          suppliers: references.suppliers,
+        }}
         canManage={canManage}
       />
       <Pagination
@@ -105,6 +123,7 @@ export default async function EquipmentPage({
           status: search.status,
           condition: search.condition,
           categoryId: search.categoryId,
+          supplierId: search.supplierId,
           roomId: search.roomId,
         }}
       />

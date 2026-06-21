@@ -12,6 +12,19 @@ const amount = (message: string) =>
       .number({ required_error: message, invalid_type_error: message })
       .min(0, "Вартість не може бути від’ємною."),
   );
+const optionalSupplier = z.preprocess(
+  (value) => {
+    const text = String(value ?? "").trim();
+    return text ? text : null;
+  },
+  z.union([
+    z.literal(null),
+    z
+      .string()
+      .trim()
+      .regex(/^supplier:[A-Za-z0-9_-]+$/, "Некоректний постачальник."),
+  ]),
+);
 
 export const equipmentSchema = z.object({
   name: text("Вкажіть назву обладнання.").min(
@@ -19,6 +32,7 @@ export const equipmentSchema = z.object({
     "Назва має містити щонайменше 2 символи.",
   ),
   categoryId: text("Оберіть категорію."),
+  supplierId: optionalSupplier,
   manufacturer: z.string().trim().max(120).optional(),
   model: z.string().trim().max(120).optional(),
   price: amount("Вкажіть вартість."),
@@ -48,6 +62,7 @@ export const equipmentInstanceSchema = z.object({
     .max(120),
   roomId: text("Оберіть приміщення екземпляра."),
   responsibleId: text("Оберіть відповідальну особу."),
+  supplierId: optionalSupplier,
   status: z
     .enum(
       ["active", "in_storage", "in_repair", "lost", "written_off", "archived"],

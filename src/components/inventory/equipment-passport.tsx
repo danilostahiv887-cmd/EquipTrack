@@ -19,6 +19,7 @@ import type {
 
 type ReferenceSet = {
   categories: Array<{ id: unknown; name: string }>;
+  suppliers: Array<{ id: unknown; name: string; type?: string }>;
   rooms: Array<{ id: unknown; number?: string; name?: string }>;
   users: Array<{ id: unknown; fullName?: string }>;
 };
@@ -103,6 +104,7 @@ export function EquipmentPassport({
                 mode="edit"
                 equipment={item}
                 categories={references.categories}
+                suppliers={references.suppliers}
               />
             </Dialog>
             <Dialog
@@ -115,8 +117,10 @@ export function EquipmentPassport({
                 equipmentId={id}
                 rooms={references.rooms}
                 users={references.users}
+                suppliers={references.suppliers}
                 defaultPrice={item.price}
                 defaultAcquisitionDate={item.acquisitionDate}
+                defaultSupplierId={item.supplierId}
               />
             </Dialog>
             <form action={deleteEquipmentAction}>
@@ -182,6 +186,11 @@ export function EquipmentPassport({
                     {instance.responsibleLabel ||
                       "Відповідальна особа не вказана"}
                   </span>
+                  <span>
+                    {instance.supplierName
+                      ? `Постачальник: ${instance.supplierName}`
+                      : "Постачальник не вказаний"}
+                  </span>
                 </div>
                 <div className="instance-statuses">
                   <StatusBadge status={instance.condition} />
@@ -209,8 +218,10 @@ export function EquipmentPassport({
                           instance={instance}
                           rooms={references.rooms}
                           users={references.users}
+                          suppliers={references.suppliers}
                           defaultPrice={item.price}
                           defaultAcquisitionDate={item.acquisitionDate}
+                          defaultSupplierId={item.supplierId}
                         />
                       </Dialog>
                       <form action={deleteEquipmentInstanceAction}>
@@ -259,6 +270,11 @@ export function EquipmentPassport({
       <section>
         <h2>Дані надходження</h2>
         <div className="compact-list">
+          <div>
+            <strong>Постачальник / донор</strong>
+            <span>{item.supplierName || "Не вказано"}</span>
+            <StatusBadge status="active" />
+          </div>
           <div>
             <strong>Типова дата</strong>
             <span>

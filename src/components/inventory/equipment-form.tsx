@@ -27,6 +27,7 @@ type EquipmentFormData = {
   id?: unknown;
   name?: string;
   categoryId?: string;
+  supplierId?: string | null;
   manufacturer?: string;
   model?: string;
   price?: number;
@@ -36,10 +37,12 @@ type EquipmentFormData = {
 
 export function EquipmentForm({
   categories,
+  suppliers = [],
   equipment,
   mode = "create",
 }: {
   categories: Array<{ id: unknown; name: string }>;
+  suppliers?: Array<{ id: unknown; name: string; type?: string }>;
   equipment?: EquipmentFormData;
   mode?: "create" | "edit";
 }) {
@@ -94,6 +97,29 @@ export function EquipmentForm({
             ))}
           </select>
           <FieldError errors={fieldErrors} name="categoryId" />
+        </label>
+
+        <label className={labelClass(fieldErrors, "supplierId")}>
+          Постачальник / донор
+          <select
+            name="supplierId"
+            defaultValue={valueOf(
+              state,
+              "supplierId",
+              equipment?.supplierId ?? "",
+            )}
+            className={fieldClass(fieldErrors, "supplierId")}
+            aria-invalid={invalid(fieldErrors, "supplierId")}
+          >
+            <option value="">Не вказано</option>
+            {suppliers.map((entry) => (
+              <option key={recordId(entry.id)} value={recordId(entry.id)}>
+                {entry.name}
+                {entry.type ? ` · ${entry.type}` : ""}
+              </option>
+            ))}
+          </select>
+          <FieldError errors={fieldErrors} name="supplierId" />
         </label>
 
         <label className={labelClass(fieldErrors, "manufacturer")}>
