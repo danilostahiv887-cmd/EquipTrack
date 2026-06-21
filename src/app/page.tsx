@@ -7,10 +7,11 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   if (!isConfigured) redirect("/setup");
+  let user = null;
   try {
-    const user = await getCurrentUser();
-    redirect(user ? "/dashboard" : "/login");
+    user = await getCurrentUser();
   } catch {
     return <DatabaseWakeScreen reason="Головна сторінка очікує, поки SurrealDB стане доступною." />;
   }
+  redirect(user ? "/dashboard" : "/login");
 }
