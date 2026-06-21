@@ -96,6 +96,39 @@ const idKey = (value: unknown) => {
   return normalizeRecordIdString(recordId(value));
 };
 
+const textValue = (value: unknown) =>
+  typeof value === "string" && value.trim() ? value.trim() : "";
+
+const joined = (values: unknown[]) =>
+  values.map(textValue).filter(Boolean).join(" · ");
+
+function missingEquipmentLabel(id: unknown) {
+  const key = idKey(id);
+  if (!key) return "Обладнання не вказано";
+  if (key.startsWith("equipment_instance:"))
+    return "Екземпляр вилучено або ще не доступний у реєстрі";
+  if (key.startsWith("equipment:"))
+    return "Картку обладнання вилучено або ще не доступно";
+  return "Обладнання не знайдено";
+}
+
+function equipmentSnapshot(row?: Record<string, unknown>) {
+  if (!row) return "";
+  return (
+    textValue(row.equipmentSnapshot) ||
+    joined([
+      row.equipmentName,
+      row.equipmentInventoryNumber,
+      row.equipmentSerialNumber,
+    ]) ||
+    joined([
+      row.expectedInventoryNumber,
+      row.expectedSerialNumber,
+      row.scannedCode,
+    ])
+  );
+}
+
 const byId = <T extends { id: unknown }>(rows: T[]) =>
   new Map(rows.map((row) => [idKey(row.id), row]));
 
@@ -167,7 +200,10 @@ export async function getLookupSet(db: Surreal): Promise<LookupSet> {
 
 export function describeRoom(id: unknown, lookup: LookupSet) {
   const room = lookup.rooms.get(idKey(id));
-  if (!room) return id ? `Приміщення ${recordId(id)}` : "Приміщення не вказано";
+  if (!room)
+    return id
+      ? "Приміщення вилучено або ще не доступне"
+      : "Приміщення не вказано";
   const building = room.buildingId
     ? lookup.buildings.get(idKey(room.buildingId))
     : undefined;
@@ -176,16 +212,31 @@ export function describeRoom(id: unknown, lookup: LookupSet) {
 
 export function describeEquipment(id: unknown, lookup: LookupSet) {
   const item = lookup.equipment.get(idKey(id));
-  if (!item) return id ? `Обладнання ${recordId(id)}` : "Обладнання не вказано";
+  if (!item) return missingEquipmentLabel(id);
   return [item.name, item.inventoryNumber, item.serialNumber]
     .filter(Boolean)
     .join(" · ");
 }
 
+function describeEquipmentInContext(
+  id: unknown,
+  lookup: LookupSet,
+  row?: Record<string, unknown>,
+) {
+  const item = lookup.equipment.get(idKey(id));
+  if (item)
+    return [item.name, item.inventoryNumber, item.serialNumber]
+      .filter(Boolean)
+      .join(" · ");
+  return equipmentSnapshot(row) || missingEquipmentLabel(id);
+}
+
 export function describeUser(id: unknown, lookup: LookupSet) {
   const user = lookup.users.get(idKey(id));
   if (!user)
-    return id ? `Користувач ${recordId(id)}` : "Користувача не вказано";
+    return id
+      ? "Користувача вилучено або ще не доступно"
+      : "Користувача не вказано";
   return user.position
     ? `${user.fullName} · ${user.position}`
     : String(user.fullName ?? "Користувач");
@@ -193,21 +244,30 @@ export function describeUser(id: unknown, lookup: LookupSet) {
 
 function describeAudit(id: unknown, lookup: LookupSet) {
   const audit = lookup.audits.get(idKey(id));
-  if (!audit) return id ? `Аудит ${recordId(id)}` : "Аудит не вказано";
+  if (!audit)
+    return id ? "Аудит вилучено або ще не доступний" : "Аудит не вказано";
   const room = audit.roomId ? describeRoom(audit.roomId, lookup) : "";
   return [audit.title, room].filter(Boolean).join(" · ");
 }
 
-function describeEntity(type: unknown, id: unknown, lookup: LookupSet) {
+function describeEntity(
+  type: unknown,
+  id: unknown,
+  lookup: LookupSet,
+  row?: Record<string, unknown>,
+) {
   const entityType = String(type ?? "");
   if (entityType === "equipment" || entityType === "equipment_instance")
-    return describeEquipment(id, lookup);
+    return (
+      textValue(row?.entitySnapshot) ||
+      describeEquipmentInContext(id, lookup, row)
+    );
   if (entityType === "room") return describeRoom(id, lookup);
   if (entityType === "audit") return describeAudit(id, lookup);
-  if (entityType === "transfer_request") return `Заявка ${recordId(id)}`;
-  if (entityType === "writeoff_request") return `Списання ${recordId(id)}`;
-  if (entityType === "repair") return `Ремонт ${recordId(id)}`;
-  return id ? recordId(id) : "Запис не вказано";
+  if (entityType === "transfer_request") return "Заявка на передачу";
+  if (entityType === "writeoff_request") return "Запит на списання";
+  if (entityType === "repair") return "Заявка на ремонт";
+  return id ? "Службовий запис" : "Запис не вказано";
 }
 
 function auditSummary(row: DisplayRow, lookup: LookupSet) {
@@ -255,7 +315,11 @@ function auditSummary(row: DisplayRow, lookup: LookupSet) {
     .slice(0, 7)
     .map((item) => {
       const equipment = item.equipmentId
-        ? describeEquipment(item.equipmentId, lookup)
+        ? describeEquipmentInContext(item.equipmentId, lookup, {
+            expectedInventoryNumber: item.expectedInventoryNumber,
+            expectedSerialNumber: item.expectedSerialNumber,
+            scannedCode: item.scannedCode,
+          })
         : `Невідомий номер ${item.scannedCode ?? "—"}`;
       const serial = item.expectedSerialNumber
         ? `серійний ${item.expectedSerialNumber}`
@@ -277,7 +341,11 @@ function auditSummary(row: DisplayRow, lookup: LookupSet) {
     .slice(0, 10)
     .map((item) => {
       const equipment = item.equipmentId
-        ? describeEquipment(item.equipmentId, lookup)
+        ? describeEquipmentInContext(item.equipmentId, lookup, {
+            expectedInventoryNumber: item.expectedInventoryNumber,
+            expectedSerialNumber: item.expectedSerialNumber,
+            scannedCode: item.scannedCode,
+          })
         : `Невідомий номер ${item.scannedCode ?? "—"}`;
       const status = label(
         item.resultStatus ?? "pending",
@@ -337,7 +405,7 @@ function decorateRow(
     delete row.completedAt;
   }
 
-  set("equipmentId", describeEquipment(row.equipmentId, lookup));
+  set("equipmentId", describeEquipmentInContext(row.equipmentId, lookup, row));
   set("fromRoomId", describeRoom(row.fromRoomId, lookup));
   set("toRoomId", describeRoom(row.toRoomId, lookup));
   set("roomId", describeRoom(row.roomId, lookup));
@@ -357,7 +425,7 @@ function decorateRow(
   set("createdBy", describeUser(row.createdBy, lookup));
   set("checkedBy", describeUser(row.checkedBy, lookup));
   set("toResponsibleId", describeUser(row.toResponsibleId, lookup));
-  set("entityId", describeEntity(row.entityType, row.entityId, lookup));
+  set("entityId", describeEntity(row.entityType, row.entityId, lookup, row));
   if (row.severity)
     display.severity = label(row.severity, String(row.severity));
   if (row.type) display.type = label(row.type, String(row.type));

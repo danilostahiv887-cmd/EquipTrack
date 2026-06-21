@@ -14,6 +14,11 @@ import {
   equipmentSchema,
 } from "@/lib/validation/equipment";
 import { queryRows } from "@/lib/db/repository";
+import {
+  equipmentSnapshotLabel,
+  resolveEquipmentModelName,
+  resolveEquipmentSnapshot,
+} from "@/server/services/equipment-snapshot";
 
 export type EquipmentActionState = {
   formError?: string;
@@ -266,6 +271,16 @@ export async function createEquipmentInstanceAction(
 
   try {
     await withDatabase(async (db) => {
+      const equipmentName = await resolveEquipmentModelName(
+        db,
+        parsed.data.equipmentId,
+      );
+      if (!equipmentName) throw new Error("Картку обладнання не знайдено.");
+      const equipmentSnapshot = equipmentSnapshotLabel({
+        name: equipmentName,
+        inventoryNumber: parsed.data.inventoryNumber,
+        serialNumber: parsed.data.serialNumber,
+      });
       await db.query(
         `BEGIN TRANSACTION;
         CREATE equipment_instance:${id} CONTENT $instance;
@@ -276,6 +291,7 @@ export async function createEquipmentInstanceAction(
           instance,
           movement: {
             equipmentId: instanceId,
+            equipmentSnapshot,
             movementType: "received",
             toRoomId: parsed.data.roomId,
             toResponsibleId: parsed.data.responsibleId,
@@ -290,6 +306,7 @@ export async function createEquipmentInstanceAction(
             action: "equipment_instance.created",
             entityType: "equipment_instance",
             entityId: instanceId,
+            entitySnapshot: equipmentSnapshot,
             createdAt: timestamp,
           },
         },
@@ -338,6 +355,15 @@ export async function updateEquipmentInstanceAction(
         { id: instanceRecord },
       );
       if (!current) throw new Error("Екземпляр не знайдено.");
+      const equipmentName = await resolveEquipmentModelName(
+        db,
+        current.equipmentId ?? parsed.data.equipmentId,
+      );
+      const equipmentSnapshot = equipmentSnapshotLabel({
+        name: equipmentName,
+        inventoryNumber: parsed.data.inventoryNumber,
+        serialNumber: parsed.data.serialNumber,
+      });
       const fromRoomId = normalizeRecordIdString(current.currentRoomId ?? "");
       const toRoomId = parsed.data.roomId;
       const movementId =
@@ -369,6 +395,7 @@ export async function updateEquipmentInstanceAction(
         movement: movementId
           ? {
               equipmentId: instanceText,
+              equipmentSnapshot,
               movementType: "corrected",
               fromRoomId,
               toRoomId,
@@ -384,6 +411,7 @@ export async function updateEquipmentInstanceAction(
           action: "equipment_instance.updated",
           entityType: "equipment_instance",
           entityId: instanceText,
+          entitySnapshot: equipmentSnapshot,
           createdAt: timestamp,
         },
       });
@@ -414,21 +442,33 @@ export async function deleteEquipmentInstanceAction(formData: FormData) {
   if (!instanceId) throw new Error("Не вказано екземпляр для видалення.");
   const timestamp = new Date().toISOString();
   const instanceText = normalizeRecordIdString(instanceId);
-  await withDatabase((db) =>
-    db.query(
-      "BEGIN TRANSACTION; DELETE $id; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;",
+  await withDatabase(async (db) => {
+    const equipmentSnapshot = await resolveEquipmentSnapshot(db, instanceText);
+    await db.query(
+      `BEGIN TRANSACTION;
+      UPDATE movement SET equipmentSnapshot = $snapshot WHERE equipmentId = $instance;
+      UPDATE transfer_request SET equipmentSnapshot = $snapshot WHERE equipmentId = $instance;
+      UPDATE repair SET equipmentSnapshot = $snapshot WHERE equipmentId = $instance;
+      UPDATE writeoff_request SET equipmentSnapshot = $snapshot WHERE equipmentId = $instance;
+      UPDATE audit_log SET entitySnapshot = $snapshot WHERE entityType = 'equipment_instance' AND entityId = $instance;
+      DELETE $id;
+      CREATE audit_log CONTENT $log;
+      COMMIT TRANSACTION;`,
       {
         id: toRecordId(instanceText),
+        instance: instanceText,
+        snapshot: equipmentSnapshot || undefined,
         log: {
           actorId: auth.user.id,
           action: "equipment_instance.deleted",
           entityType: "equipment_instance",
           entityId: instanceText,
+          entitySnapshot: equipmentSnapshot || undefined,
           createdAt: timestamp,
         },
       },
-    ),
-  );
+    );
+  });
   revalidatePath("/equipment");
   if (equipmentId)
     revalidatePath(`/equipment/${encodeURIComponent(equipmentId)}`);

@@ -8,6 +8,7 @@ import { assertPermission, can } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/db/client";
 import { normalizeRecordIdString, toRecordId } from "@/lib/db/record-id";
 import { queryRows } from "@/lib/db/repository";
+import { resolveEquipmentSnapshot } from "@/server/services/equipment-snapshot";
 
 export type WorkflowActionState = {
   formError?: string;
@@ -217,17 +218,22 @@ export async function createTransferRequestAction(
   const parsed = transferSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fieldErrors(parsed.error, formData);
   const timestamp = new Date().toISOString();
-  await withDatabase((db) =>
-    db.query("CREATE transfer_request CONTENT $value;", {
+  await withDatabase(async (db) => {
+    const equipmentSnapshot = await resolveEquipmentSnapshot(
+      db,
+      parsed.data.equipmentId,
+    );
+    await db.query("CREATE transfer_request CONTENT $value;", {
       value: {
         ...parsed.data,
+        equipmentSnapshot: equipmentSnapshot || undefined,
         requestedBy: user.id,
         status: "submitted",
         createdAt: timestamp,
         updatedAt: timestamp,
       },
-    }),
-  );
+    });
+  });
   await addNotification(
     "user:manager-1",
     "Нова заявка на передачу",
@@ -257,12 +263,14 @@ export async function createMovementAction(
       const [equipment] = await queryRows<{
         id: unknown;
         equipmentId?: string;
+        inventoryNumber?: string;
+        serialNumber?: string;
         currentRoomId?: string;
         currentResponsibleId?: string;
         status?: string;
       }>(
         db,
-        "SELECT id, equipmentId, currentRoomId, currentResponsibleId, status FROM equipment_instance WHERE id = $id LIMIT 1;",
+        "SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId, currentResponsibleId, status FROM equipment_instance WHERE id = $id LIMIT 1;",
         { id: toRecordId(parsed.data.equipmentId) },
       );
       if (!equipment) throw new Error("Обладнання не знайдено.");
@@ -274,6 +282,11 @@ export async function createMovementAction(
         throw new Error(
           "Оберіть інше приміщення: обладнання вже знаходиться там.",
         );
+      const equipmentSnapshot = await resolveEquipmentSnapshot(
+        db,
+        parsed.data.equipmentId,
+        equipment,
+      );
 
       const timestamp = new Date().toISOString();
       const movementId = generated("movement");
@@ -289,6 +302,7 @@ export async function createMovementAction(
           time: timestamp,
           movement: {
             equipmentId: parsed.data.equipmentId,
+            equipmentSnapshot: equipmentSnapshot || undefined,
             movementType: parsed.data.movementType,
             fromRoomId: fromRoomId || undefined,
             toRoomId: parsed.data.toRoomId,
@@ -303,6 +317,7 @@ export async function createMovementAction(
             action: "movement.created",
             entityType: "equipment_instance",
             entityId: parsed.data.equipmentId,
+            entitySnapshot: equipmentSnapshot || undefined,
             createdAt: timestamp,
           },
         },
@@ -334,17 +349,22 @@ export async function createRepairAction(
   const parsed = repairSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fieldErrors(parsed.error, formData);
   const timestamp = new Date().toISOString();
-  await withDatabase((db) =>
-    db.query("CREATE repair CONTENT $value;", {
+  await withDatabase(async (db) => {
+    const equipmentSnapshot = await resolveEquipmentSnapshot(
+      db,
+      parsed.data.equipmentId,
+    );
+    await db.query("CREATE repair CONTENT $value;", {
       value: {
         ...parsed.data,
+        equipmentSnapshot: equipmentSnapshot || undefined,
         reportedBy: user.id,
         status: "reported",
         createdAt: timestamp,
         updatedAt: timestamp,
       },
-    }),
-  );
+    });
+  });
   await addNotification(
     "user:manager-1",
     "Повідомлення про несправність",
@@ -373,6 +393,10 @@ export async function transitionRepairAction(formData: FormData) {
       id: parsed.repairId,
     });
     if (!repair) throw new Error("Заявку на ремонт не знайдено.");
+    const equipmentSnapshot = await resolveEquipmentSnapshot(
+      db,
+      repair.equipmentId,
+    );
     const allowed: Record<string, string[]> = {
       reported: ["under_review", "cancelled"],
       under_review: [
@@ -432,6 +456,7 @@ export async function transitionRepairAction(formData: FormData) {
       movement: movementType
         ? {
             equipmentId: repair.equipmentId,
+            equipmentSnapshot: equipmentSnapshot || undefined,
             movementType,
             fromRoomId: repair.roomId,
             toRoomId: repair.roomId,
@@ -446,6 +471,7 @@ export async function transitionRepairAction(formData: FormData) {
         action: "repair.updated",
         entityType: "repair",
         entityId: normalizeRecordIdString(parsed.repairId),
+        entitySnapshot: equipmentSnapshot || undefined,
         createdAt: timestamp,
       },
     });
@@ -538,16 +564,22 @@ export async function completeTransferRequestAction(formData: FormData) {
     roomId.parse(request.toRoomId);
     const timestamp = new Date().toISOString();
     const movementId = generated("movement");
+    const equipmentSnapshot = await resolveEquipmentSnapshot(
+      db,
+      request.equipmentId,
+    );
     await db.query(
-      `BEGIN TRANSACTION; UPDATE $equipment MERGE { currentRoomId: $room, status: 'active', updatedAt: $time }; UPDATE $request MERGE { status: 'completed', completedBy: $actor, completedAt: $time, updatedAt: $time }; CREATE ${movementId} CONTENT $movement; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;`,
+      `BEGIN TRANSACTION; UPDATE $equipment MERGE { currentRoomId: $room, status: 'active', updatedAt: $time }; UPDATE $request MERGE { status: 'completed', completedBy: $actor, completedAt: $time, updatedAt: $time, equipmentSnapshot: $equipmentSnapshot }; CREATE ${movementId} CONTENT $movement; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;`,
       {
         equipment: toRecordId(request.equipmentId),
         request: id,
         room: request.toRoomId,
         actor: user.id,
         time: timestamp,
+        equipmentSnapshot: equipmentSnapshot || undefined,
         movement: {
           equipmentId: request.equipmentId,
+          equipmentSnapshot: equipmentSnapshot || undefined,
           movementType: "transferred",
           fromRoomId: request.fromRoomId,
           toRoomId: request.toRoomId,
@@ -1200,11 +1232,16 @@ export async function createWriteoffAction(
         throw new Error(
           "Для цього екземпляра вже є активна пропозиція списання.",
         );
+      const equipmentSnapshot = await resolveEquipmentSnapshot(
+        db,
+        parsed.data.equipmentId,
+      );
       await db.query(
         "BEGIN TRANSACTION; CREATE writeoff_request CONTENT $value; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;",
         {
           value: {
             ...parsed.data,
+            equipmentSnapshot: equipmentSnapshot || undefined,
             status: "proposed",
             proposedBy: user.id,
             createdAt: timestamp,
@@ -1215,6 +1252,7 @@ export async function createWriteoffAction(
             action: "writeoff.proposed",
             entityType: "equipment_instance",
             entityId: parsed.data.equipmentId,
+            entitySnapshot: equipmentSnapshot || undefined,
             createdAt: timestamp,
           },
         },
@@ -1381,10 +1419,13 @@ export async function completeWriteoffAction(formData: FormData) {
       throw new Error("Завершити можна лише погоджене списання.");
     const [equipment] = await queryRows<{
       status?: string;
+      equipmentId?: string;
+      inventoryNumber?: string;
+      serialNumber?: string;
       currentRoomId?: string;
     }>(
       db,
-      "SELECT status, currentRoomId FROM equipment_instance WHERE id = $id LIMIT 1;",
+      "SELECT status, equipmentId, inventoryNumber, serialNumber, currentRoomId FROM equipment_instance WHERE id = $id LIMIT 1;",
       { id: toRecordId(request.equipmentId) },
     );
     if (!equipment) throw new Error("Екземпляр обладнання не знайдено.");
@@ -1393,10 +1434,15 @@ export async function completeWriteoffAction(formData: FormData) {
     proposedBy = normalizeRecordIdString(request.proposedBy ?? "");
     const timestamp = new Date().toISOString();
     const movementId = generated("movement");
+    const equipmentSnapshot = await resolveEquipmentSnapshot(
+      db,
+      request.equipmentId,
+      equipment,
+    );
     await db.query(
       `BEGIN TRANSACTION;
       UPDATE $equipment MERGE { status: 'written_off', archivedAt: $time, updatedAt: $time };
-      UPDATE $request MERGE { status: 'completed', completedBy: $actor, completedAt: $time, updatedAt: $time };
+      UPDATE $request MERGE { status: 'completed', completedBy: $actor, completedAt: $time, updatedAt: $time, equipmentSnapshot: $equipmentSnapshot };
       CREATE ${movementId} CONTENT $movement;
       CREATE audit_log CONTENT $log;
       COMMIT TRANSACTION;`,
@@ -1405,8 +1451,10 @@ export async function completeWriteoffAction(formData: FormData) {
         request: requestId,
         actor: user.id,
         time: timestamp,
+        equipmentSnapshot: equipmentSnapshot || undefined,
         movement: {
           equipmentId: request.equipmentId,
+          equipmentSnapshot: equipmentSnapshot || undefined,
           movementType: "written_off",
           fromRoomId: equipment.currentRoomId,
           performedBy: user.id,
