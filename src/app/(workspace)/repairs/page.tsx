@@ -1,9 +1,8 @@
 import { getCurrentUser } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
-import { getMovementReferences } from "@/server/services/catalog";
 import { getWorkflowPage } from "@/server/services/workflows";
 import { transitionRepairAction } from "@/server/actions/workflows";
-import { RepairForm } from "@/components/workflows/workflow-form";
+import { RepairFormLoader } from "@/components/workflows/workflow-form-loader";
 import { WorkflowList } from "@/components/workflows/workflow-list";
 import { Pagination } from "@/components/ui/pagination";
 import { Dialog } from "@/components/ui/dialog";
@@ -34,7 +33,7 @@ const transitions: Record<string, Array<{ status: string; label: string; confirm
 export default async function RepairsPage({ searchParams }: { searchParams: Promise<{ page?: string; q?: string; status?: string; severity?: string }> }) {
   const search = await searchParams;
   const page = Math.max(1, Number(search.page ?? 1));
-  const [user, rows, references] = await Promise.all([getCurrentUser(), getWorkflowPage("repairs", page, search), getMovementReferences()]);
+  const [user, rows] = await Promise.all([getCurrentUser(), getWorkflowPage("repairs", page, search)]);
   const canManage = Boolean(user && can(user, "repair:manage"));
   return (
     <section className="module-page">
@@ -44,7 +43,7 @@ export default async function RepairsPage({ searchParams }: { searchParams: Prom
           <h1>Ремонти</h1>
           <p>Повідомлення про несправності, діагностику й повернення обладнання до роботи.</p>
         </div>
-        <Dialog label="Повідомити про несправність" title="Нове повідомлення про ремонт"><RepairForm equipment={references.equipment} rooms={references.rooms}/></Dialog>
+        <Dialog label="Повідомити про несправність" title="Нове повідомлення про ремонт"><RepairFormLoader /></Dialog>
       </header>
       <form className="filter-line">
         <input name="q" defaultValue={search.q} placeholder="Обладнання, приміщення, опис, серйозність або стан" />

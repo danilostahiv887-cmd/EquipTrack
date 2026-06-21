@@ -22,6 +22,15 @@ export async function getWorkflowPage(kind: keyof typeof tables, page: number, f
     const safePage = Math.max(1, page);
     const options = typeof filters === "string" ? { q: filters } : filters ?? {};
     const statusWhere = options.status ? "WHERE status = $status" : "";
+    const auditLookups = kind === "audits"
+      ? `
+        SELECT id, title, roomId, status FROM audit;
+        SELECT auditId, equipmentId, scannedCode, resultStatus, expectedRoomId, actualRoomId, expectedSerialNumber, expectedInventoryNumber, actualCondition, expectedCondition, note, checkedAt FROM audit_item;
+      `
+      : `
+        SELECT id, title, roomId, status FROM audit WHERE id = NONE;
+        SELECT auditId, equipmentId, scannedCode, resultStatus, expectedRoomId, actualRoomId, expectedSerialNumber, expectedInventoryNumber, actualCondition, expectedCondition, note, checkedAt FROM audit_item WHERE id = NONE;
+      `;
     const result = await queryBatch(db, `
       SELECT * FROM ${tables[kind]} ${statusWhere} ORDER BY ${orderBy[kind]} DESC;
       SELECT id, name, manufacturer, model FROM equipment;
@@ -29,8 +38,7 @@ export async function getWorkflowPage(kind: keyof typeof tables, page: number, f
       SELECT id, number, name, buildingId FROM room;
       SELECT id, name FROM building;
       SELECT id, fullName, position, role FROM user;
-      SELECT id, title, roomId, status FROM audit;
-      SELECT auditId, equipmentId, scannedCode, resultStatus, expectedRoomId, actualRoomId, expectedSerialNumber, expectedInventoryNumber, actualCondition, expectedCondition, note, checkedAt FROM audit_item;
+      ${auditLookups}
     `, options.status ? { status: options.status } : {});
     const rows = batchRows<WorkflowRecord>(result, 0);
     const lookup = buildLookupSet({

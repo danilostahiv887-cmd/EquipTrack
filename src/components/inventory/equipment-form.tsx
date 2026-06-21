@@ -26,8 +26,6 @@ export function EquipmentForm({
   mode = "create",
 }: {
   categories: Array<{ id: unknown; name: string }>;
-  rooms?: Array<{ id: unknown; number?: string; name?: string }>;
-  users?: Array<{ id: unknown; fullName?: string }>;
   equipment?: EquipmentFormData;
   mode?: "create" | "edit";
 }) {

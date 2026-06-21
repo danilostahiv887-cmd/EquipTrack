@@ -312,7 +312,18 @@ export function enrichWorkflowRowsWithLookup(rows: DisplayRow[], lookup: LookupS
 }
 
 export async function enrichFiles(db: Surreal, files: FileAttachment[]) {
-  const lookup = await getLookupSet(db);
+  const result = await queryBatch(db, `
+    SELECT id, name, manufacturer, model FROM equipment;
+    SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId FROM equipment_instance;
+    SELECT id, number, name, buildingId FROM room;
+    SELECT id, name FROM building;
+  `);
+  const lookup = buildLookupSet({
+    equipmentModels: batchRows<EquipmentModelLookup>(result, 0),
+    equipmentInstances: batchRows<EquipmentLookup>(result, 1),
+    rooms: batchRows<RoomLookup>(result, 2),
+    buildings: batchRows<BuildingLookup>(result, 3),
+  });
   return files.map((file) => {
     const entityType = String(file.entityType ?? "");
     const entityId = file.entityId;

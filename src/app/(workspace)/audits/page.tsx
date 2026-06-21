@@ -1,7 +1,6 @@
-import { getMovementReferences } from "@/server/services/catalog";
 import { getWorkflowPage } from "@/server/services/workflows";
 import { cancelAuditAction, deleteAuditAction, finishAuditAction, startAuditAction } from "@/server/actions/workflows";
-import { AuditForm, AuditScanForm } from "@/components/workflows/workflow-form";
+import { AuditFormLoader, AuditScanFormLoader } from "@/components/workflows/workflow-form-loader";
 import { WorkflowList } from "@/components/workflows/workflow-list";
 import { Pagination } from "@/components/ui/pagination";
 import { requirePermission } from "@/lib/auth/guards";
@@ -15,7 +14,7 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
   await requirePermission("audit:manage");
   const search = await searchParams;
   const page = Math.max(1, Number(search.page ?? 1));
-  const [rows, references] = await Promise.all([getWorkflowPage("audits", page, search), getMovementReferences()]);
+  const rows = await getWorkflowPage("audits", page, search);
   return (
     <section className="module-page">
       <header className="module-heading">
@@ -24,7 +23,7 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
           <h1>Аудити</h1>
           <p>Перерахунок обладнання в приміщеннях, перевірка фактичного місця й стану.</p>
         </div>
-        <Dialog label="Створити аудит" title="Нова інвентаризація"><AuditForm rooms={references.rooms}/></Dialog>
+        <Dialog label="Створити аудит" title="Нова інвентаризація"><AuditFormLoader /></Dialog>
       </header>
       <form className="filter-line">
         <input name="q" defaultValue={search.q} placeholder="Назва аудиту, приміщення, обладнання, стан або результат" />
@@ -39,14 +38,12 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
         actions={(row) => {
           const status = String(row.status ?? "");
           const id = recordId(row.id);
-          const auditItems = references.auditItems.filter((item) => recordId(item.auditId ?? "") === id);
           return (
             <>
               {!["completed", "cancelled"].includes(status) && (
                 <Dialog label="Редагувати" title="Редагування аудиту" icon={false} triggerClassName="inline-dialog-trigger">
-                  <AuditForm
+                  <AuditFormLoader
                     mode="edit"
-                    rooms={references.rooms}
                     audit={{
                       id: row.id,
                       title: String(row.title ?? ""),
@@ -74,7 +71,7 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
                     triggerClassName="inline-dialog-trigger"
                     dialogClassName="dialog-wide audit-scan-dialog"
                   >
-                    <AuditScanForm auditId={row.id} auditRoomId={recordId(row.roomId ?? "")} equipment={references.equipment} auditItems={auditItems} />
+                    <AuditScanFormLoader auditId={row.id} auditRoomId={recordId(row.roomId ?? "")} />
                   </Dialog>
                   <form action={finishAuditAction}>
                     <input type="hidden" name="auditId" value={id} />

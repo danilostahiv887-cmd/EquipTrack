@@ -2,7 +2,7 @@ import { withDatabase } from "@/lib/db/client";
 import { normalizeRecordIdString, toRecordId } from "@/lib/db/record-id";
 import { batchRows, queryBatch, queryRows, type Page } from "@/lib/db/repository";
 import { recordId } from "@/lib/format";
-import { enrichWorkflowRows } from "@/server/services/display";
+import { buildLookupSet, enrichWorkflowRowsWithLookup } from "@/server/services/display";
 
 export type Room = { id: unknown; number: string; name?: string; buildingId: string; roomTypeId: string; responsibleId?: string; floor: number; capacity: number; status: string; description?: string };
 export type EquipmentModel = { id: unknown; name: string; categoryId: string; manufacturer?: string; model?: string; price?: number; acquisitionDate?: string; status: string; condition: string; photoFileId?: string; createdAt: string; updatedAt?: string };
@@ -38,6 +38,7 @@ export type Equipment = EquipmentModel & {
   serialPreview: string;
   instances: EquipmentInstance[];
 };
+export type EquipmentListItem = Omit<Equipment, "instances">;
 export type Reference = { id: unknown; name: string; number?: string; fullName?: string };
 export type MovementReferences = {
   equipment: Array<Pick<EquipmentInstance, "id" | "equipmentId" | "equipmentName" | "inventoryNumber" | "serialNumber" | "currentRoomId" | "roomLabel" | "condition" | "status">>;
@@ -57,6 +58,7 @@ export type MovementReferences = {
     expectedInventoryNumber?: string;
   }>;
 };
+export type WorkflowFormReferences = Pick<MovementReferences, "equipment" | "rooms">;
 export type WriteoffEquipmentOption = Pick<EquipmentInstance, "id" | "equipmentId" | "equipmentName" | "inventoryNumber" | "serialNumber" | "currentRoomId" | "condition" | "status">;
 type AttachedFile = { id: unknown; name?: string; mimeType?: string; size?: number; kind?: string; createdAt?: string };
 type WorkflowRow = Record<string, unknown> & { id: unknown };
@@ -140,7 +142,7 @@ export async function getRooms(page: number, filters?: string | RoomFilters): Pr
   });
 }
 
-export async function getEquipment(page: number, filters?: string | EquipmentFilters): Promise<Page<Equipment>> {
+export async function getEquipment(page: number, filters?: string | EquipmentFilters): Promise<Page<EquipmentListItem>> {
   return withDatabase(async (db) => {
     const pageSize = 12;
     const safePage = Math.max(1, page);
@@ -167,7 +169,8 @@ export async function getEquipment(page: number, filters?: string | EquipmentFil
       if (options.roomId && !item.instances.some((instance) => normalizeRecordIdString(instance.currentRoomId) === normalizeRecordIdString(options.roomId))) return false;
       return true;
     });
-    return { items: filtered.slice((safePage - 1) * pageSize, safePage * pageSize), total: filtered.length, page: safePage, pageSize };
+    const items = filtered.slice((safePage - 1) * pageSize, safePage * pageSize).map(({ instances: _, ...item }) => item);
+    return { items, total: filtered.length, page: safePage, pageSize };
   });
 }
 
@@ -208,6 +211,45 @@ export async function getMovementReferences(): Promise<MovementReferences> {
   });
 }
 
+export async function getWorkflowFormReferences(): Promise<WorkflowFormReferences> {
+  return withDatabase(async (db) => {
+    const result = await queryBatch(db, `
+      SELECT id, name, manufacturer, model FROM equipment ORDER BY name;
+      SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId, condition, status FROM equipment_instance WHERE status != 'written_off' ORDER BY inventoryNumber;
+      SELECT id, number, name FROM room WHERE status = 'active' ORDER BY number;
+    `);
+    const models = batchRows<EquipmentModel>(result, 0);
+    const rawInstances = batchRows<EquipmentInstance>(result, 1);
+    const rooms = batchRows<MovementReferences["rooms"][number]>(result, 2);
+    const equipment = withInstanceLabels(rawInstances, models, rooms, []).sort((left, right) => compact([left.equipmentName, left.inventoryNumber]).localeCompare(compact([right.equipmentName, right.inventoryNumber]), "uk"));
+    return { equipment, rooms };
+  });
+}
+
+export async function getAuditFormReferences() {
+  return withDatabase(async (db) => {
+    const rooms = await queryRows<MovementReferences["rooms"][number]>(db, "SELECT id, number, name FROM room WHERE status = 'active' ORDER BY number;");
+    return { rooms };
+  });
+}
+
+export async function getAuditScanReferences(auditId: string): Promise<MovementReferences> {
+  return withDatabase(async (db) => {
+    const result = await queryBatch(db, `
+      SELECT id, name, manufacturer, model FROM equipment ORDER BY name;
+      SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId, condition, status FROM equipment_instance WHERE status != 'written_off' ORDER BY inventoryNumber;
+      SELECT id, number, name FROM room WHERE status = 'active' ORDER BY number;
+      SELECT id, auditId, equipmentId, scannedCode, resultStatus, actualCondition, note, checkedAt, expectedRoomId, actualRoomId, expectedSerialNumber, expectedInventoryNumber FROM audit_item WHERE auditId = $auditId ORDER BY checkedAt DESC;
+    `, { auditId: normalizeRecordIdString(auditId) });
+    const models = batchRows<EquipmentModel>(result, 0);
+    const rawInstances = batchRows<EquipmentInstance>(result, 1);
+    const rooms = batchRows<MovementReferences["rooms"][number]>(result, 2);
+    const auditItems = batchRows<MovementReferences["auditItems"][number]>(result, 3);
+    const equipment = withInstanceLabels(rawInstances, models, rooms, []).sort((left, right) => compact([left.equipmentName, left.inventoryNumber]).localeCompare(compact([right.equipmentName, right.inventoryNumber]), "uk"));
+    return { equipment, rooms, auditItems };
+  });
+}
+
 export async function getWriteoffEquipmentOptions(): Promise<WriteoffEquipmentOption[]> {
   return withDatabase(async (db) => {
     const result = await queryBatch(db, `
@@ -239,6 +281,8 @@ export async function getRoomPassport(id: string) {
       SELECT * FROM equipment ORDER BY name;
       SELECT * FROM equipment_instance WHERE currentRoomId = $id ORDER BY inventoryNumber;
       SELECT id, fullName FROM user ORDER BY fullName;
+      SELECT id, number, name, buildingId FROM room ORDER BY number;
+      SELECT id, name FROM building ORDER BY name;
       SELECT * FROM movement WHERE fromRoomId = $id OR toRoomId = $id ORDER BY movementDate DESC LIMIT 8;
       SELECT * FROM audit WHERE roomId = $id ORDER BY createdAt DESC LIMIT 8;
       SELECT id, name, mimeType, size, kind, createdAt FROM file WHERE entityId = $id ORDER BY createdAt DESC;
@@ -246,11 +290,14 @@ export async function getRoomPassport(id: string) {
     const models = batchRows<EquipmentModel>(result, 0);
     const rawInstances = batchRows<EquipmentInstance>(result, 1);
     const users = batchRows<Reference>(result, 2);
-    const movementRows = batchRows<WorkflowRow>(result, 3);
-    const audits = batchRows<Record<string, unknown>>(result, 4);
-    const files = batchRows<AttachedFile>(result, 5);
-    const equipment = withInstanceLabels(rawInstances, models, [room], users);
-    const movements = await enrichWorkflowRows(db, movementRows, "movements");
+    const rooms = batchRows<Pick<Room, "id" | "number" | "name" | "buildingId">>(result, 3);
+    const buildings = batchRows<Reference>(result, 4);
+    const movementRows = batchRows<WorkflowRow>(result, 5);
+    const audits = batchRows<Record<string, unknown>>(result, 6);
+    const files = batchRows<AttachedFile>(result, 7);
+    const equipment = withInstanceLabels(rawInstances, models, rooms, users);
+    const lookup = buildLookupSet({ equipmentModels: models, equipmentInstances: rawInstances, rooms, buildings, users });
+    const movements = enrichWorkflowRowsWithLookup(movementRows, lookup, "movements");
     return { room, equipment, movements, audits, files };
   });
 }
@@ -263,14 +310,16 @@ export async function getEquipmentPassport(id: string, instanceQuery?: string) {
     if (!equipment) return null;
     const result = await queryBatch(db, `
       SELECT * FROM equipment_instance WHERE equipmentId = $id ORDER BY inventoryNumber;
-      SELECT id, number, name FROM room ORDER BY number;
+      SELECT id, number, name, buildingId FROM room ORDER BY number;
       SELECT id, fullName FROM user ORDER BY fullName;
+      SELECT id, name FROM building ORDER BY name;
       SELECT id, name, mimeType, size, kind, createdAt FROM file WHERE entityId = $id ORDER BY createdAt DESC;
     `, { id: textId });
     const rawInstances = batchRows<EquipmentInstance>(result, 0);
-    const rooms = batchRows<Pick<Room, "id" | "number" | "name">>(result, 1);
+    const rooms = batchRows<Pick<Room, "id" | "number" | "name" | "buildingId">>(result, 1);
     const users = batchRows<Reference>(result, 2);
-    const files = batchRows<AttachedFile>(result, 3);
+    const buildings = batchRows<Reference>(result, 3);
+    const files = batchRows<AttachedFile>(result, 4);
     const instances = withInstanceLabels(rawInstances, [equipment], rooms, users);
     const instanceIds = new Set(instances.map((item) => idKey(item.id)));
     const relatedResult = instanceIds.size
@@ -287,7 +336,8 @@ export async function getEquipmentPassport(id: string, instanceQuery?: string) {
     const filteredInstances = needle
       ? instances.filter((item) => [item.equipmentName, item.inventoryNumber, item.serialNumber, item.roomLabel, item.responsibleLabel, item.status, item.condition].filter(Boolean).join(" ").toLowerCase().includes(needle))
       : instances;
-    const movements = await enrichWorkflowRows(db, movementRows, "movements");
+    const lookup = buildLookupSet({ equipmentModels: [equipment], equipmentInstances: rawInstances, rooms, buildings, users });
+    const movements = enrichWorkflowRowsWithLookup(movementRows, lookup, "movements");
     return { equipment, instances, filteredInstances, instanceQuery: instanceQuery ?? "", movements, repairs, audits, files };
   });
 }

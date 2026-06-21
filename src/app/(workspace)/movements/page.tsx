@@ -1,7 +1,6 @@
 import { getWorkflowPage } from "@/server/services/workflows";
-import { getMovementReferences } from "@/server/services/catalog";
 import { WorkflowList } from "@/components/workflows/workflow-list";
-import { MovementForm } from "@/components/workflows/workflow-form";
+import { MovementFormLoader } from "@/components/workflows/workflow-form-loader";
 import { Pagination } from "@/components/ui/pagination";
 import { requirePermission } from "@/lib/auth/guards";
 import { Dialog } from "@/components/ui/dialog";
@@ -13,7 +12,7 @@ export default async function MovementsPage({ searchParams }: { searchParams: Pr
   await requirePermission("movement:manage");
   const search = await searchParams;
   const page = Math.max(1, Number(search.page ?? 1));
-  const [rows, references] = await Promise.all([getWorkflowPage("movements", page, search), getMovementReferences()]);
+  const rows = await getWorkflowPage("movements", page, search);
   return (
     <section className="module-page">
       <header className="module-heading">
@@ -22,7 +21,7 @@ export default async function MovementsPage({ searchParams }: { searchParams: Pr
           <h1>Переміщення</h1>
           <p>Надходження, передачі між приміщеннями, ремонти та списання обладнання.</p>
         </div>
-        <Dialog label="Новий рух" title="Нове переміщення обладнання"><MovementForm equipment={references.equipment} rooms={references.rooms}/></Dialog>
+        <Dialog label="Новий рух" title="Нове переміщення обладнання"><MovementFormLoader /></Dialog>
       </header>
       <form className="filter-line">
         <input name="q" defaultValue={search.q} placeholder="Обладнання, приміщення, виконавець або причина" />

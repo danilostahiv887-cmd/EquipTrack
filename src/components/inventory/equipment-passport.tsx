@@ -51,7 +51,7 @@ export function EquipmentPassport({ data, references, canManage }: { data: Passp
         {canManage && (
           <div className="row-actions">
             <Dialog label="Редагувати картку" title="Редагування картки обладнання">
-              <EquipmentForm mode="edit" equipment={item} categories={references.categories} rooms={references.rooms} users={references.users} />
+              <EquipmentForm mode="edit" equipment={item} categories={references.categories} />
             </Dialog>
             <Dialog label="Додати екземпляр" title="Новий фізичний екземпляр" icon={false} triggerClassName="inline-dialog-trigger action-stamp">
               <EquipmentInstanceForm

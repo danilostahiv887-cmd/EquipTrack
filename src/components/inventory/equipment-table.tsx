@@ -5,15 +5,13 @@ import { EquipmentForm } from "@/components/inventory/equipment-form";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { money, recordId } from "@/lib/format";
 import { deleteEquipmentAction } from "@/server/actions/equipment";
-import type { Equipment, Reference } from "@/server/services/catalog";
+import type { EquipmentListItem, Reference } from "@/server/services/catalog";
 
 type References = {
   categories: Reference[];
-  rooms: Reference[];
-  users: Reference[];
 };
 
-export function EquipmentTable({ equipment, references, canManage }: { equipment: Equipment[]; references?: References; canManage?: boolean }) {
+export function EquipmentTable({ equipment, references, canManage }: { equipment: EquipmentListItem[]; references?: References; canManage?: boolean }) {
   return (
     <div className="ledger-table equipment-ledger equipment-model-ledger">
       <div className="ledger-head ledger-head-actions">
@@ -44,7 +42,7 @@ export function EquipmentTable({ equipment, references, canManage }: { equipment
               {canManage && references && (
                 <>
                   <Dialog label="Редагувати" title="Редагування картки обладнання" icon={false} triggerClassName="inline-dialog-trigger">
-                    <EquipmentForm mode="edit" equipment={item} categories={references.categories} rooms={references.rooms} users={references.users} />
+                    <EquipmentForm mode="edit" equipment={item} categories={references.categories} />
                   </Dialog>
                   <form action={deleteEquipmentAction}>
                     <input name="equipmentId" type="hidden" value={id} />
