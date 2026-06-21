@@ -1,6 +1,16 @@
 import { redirect } from "next/navigation";
 import { isConfigured } from "@/lib/env";
+import { getCurrentUser } from "@/lib/auth/session";
+import { DatabaseWakeScreen } from "@/components/system/database-wake-screen";
 
-export default function HomePage() {
-  redirect(isConfigured ? "/dashboard" : "/setup");
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  if (!isConfigured) redirect("/setup");
+  try {
+    const user = await getCurrentUser();
+    redirect(user ? "/dashboard" : "/login");
+  } catch {
+    return <DatabaseWakeScreen reason="Головна сторінка очікує, поки SurrealDB стане доступною." />;
+  }
 }
