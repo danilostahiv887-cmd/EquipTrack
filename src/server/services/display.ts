@@ -215,6 +215,11 @@ function decorateRow(row: DisplayRow, lookup: LookupSet, kind?: string): Display
   const display: Record<string, string> = {};
   const set = (key: string, value: string) => { if (row[key] != null && row[key] !== "") display[key] = value; };
 
+  if (kind === "writeoffs" && row.status === "approved" && !row.approvedAt && row.completedAt) {
+    row.approvedAt = row.completedAt;
+    delete row.completedAt;
+  }
+
   set("equipmentId", describeEquipment(row.equipmentId, lookup));
   set("fromRoomId", describeRoom(row.fromRoomId, lookup));
   set("toRoomId", describeRoom(row.toRoomId, lookup));
