@@ -3,7 +3,7 @@ import type { WorkspaceUser } from "@/lib/types";
 
 const labels = {
   staff: "Працівник",
-  inventory_manager: "Менеджер обліку",
+  inventory_manager: "Інвентаризатор",
   admin: "Адміністратор",
 };
 export function UserMenu({ user }: { user: WorkspaceUser }) {

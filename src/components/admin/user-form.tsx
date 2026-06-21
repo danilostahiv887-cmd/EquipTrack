@@ -100,7 +100,7 @@ export function UserForm({
             aria-invalid={invalid(fieldErrors, "role")}
           >
             <option value="staff">Працівник</option>
-            <option value="inventory_manager">Менеджер обліку</option>
+            <option value="inventory_manager">Інвентаризатор</option>
             <option value="admin">Адміністратор</option>
           </select>
           <FieldError errors={fieldErrors} name="role" />

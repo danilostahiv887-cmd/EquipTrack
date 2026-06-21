@@ -91,7 +91,7 @@ export const dictionaryLabels: Record<string, string> = {
   "writeoff.completed": "Списання завершено",
   "writeoff.cancelled": "Пропозицію списання скасовано",
   staff: "Працівник",
-  inventory_manager: "Менеджер обліку",
+  inventory_manager: "Інвентаризатор",
   admin: "Адміністратор",
 };
 
