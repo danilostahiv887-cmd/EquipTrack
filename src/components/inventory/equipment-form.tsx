@@ -2,12 +2,26 @@
 
 import { useActionState } from "react";
 import { FileUpload } from "@/components/files/file-upload";
-import { FieldError, FormFeedback, fieldClass, invalid, labelClass } from "@/components/ui/form-errors";
+import {
+  FieldError,
+  FormFeedback,
+  fieldClass,
+  invalid,
+  labelClass,
+} from "@/components/ui/form-errors";
 import { recordId } from "@/lib/format";
-import { createEquipmentAction, updateEquipmentAction, type EquipmentActionState } from "@/server/actions/equipment";
+import {
+  createEquipmentAction,
+  updateEquipmentAction,
+  type EquipmentActionState,
+} from "@/server/actions/equipment";
 
 const initial: EquipmentActionState = {};
-const valueOf = (state: EquipmentActionState, name: string, fallback: string | number = "") => state.values?.[name] ?? fallback;
+const valueOf = (
+  state: EquipmentActionState,
+  name: string,
+  fallback: string | number = "",
+) => state.values?.[name] ?? fallback;
 
 type EquipmentFormData = {
   id?: unknown;
@@ -29,12 +43,21 @@ export function EquipmentForm({
   equipment?: EquipmentFormData;
   mode?: "create" | "edit";
 }) {
-  const [state, action, pending] = useActionState(mode === "edit" ? updateEquipmentAction : createEquipmentAction, initial);
+  const [state, action, pending] = useActionState(
+    mode === "edit" ? updateEquipmentAction : createEquipmentAction,
+    initial,
+  );
   const fieldErrors = state.fieldErrors;
 
   return (
     <form noValidate action={action} className="passport-form">
-      {mode === "edit" && <input type="hidden" name="equipmentId" value={recordId(equipment?.id ?? "")} />}
+      {mode === "edit" && (
+        <input
+          type="hidden"
+          name="equipmentId"
+          value={recordId(equipment?.id ?? "")}
+        />
+      )}
 
       <div className="form-grid">
         <label className={labelClass(fieldErrors, "name")}>
@@ -53,12 +76,22 @@ export function EquipmentForm({
           Категорія
           <select
             name="categoryId"
-            defaultValue={valueOf(state, "categoryId", equipment?.categoryId ?? "")}
+            defaultValue={valueOf(
+              state,
+              "categoryId",
+              equipment?.categoryId ?? "",
+            )}
             className={fieldClass(fieldErrors, "categoryId")}
             aria-invalid={invalid(fieldErrors, "categoryId")}
           >
-            <option value="" disabled>Оберіть категорію</option>
-            {categories.map((entry) => <option key={recordId(entry.id)} value={recordId(entry.id)}>{entry.name}</option>)}
+            <option value="" disabled>
+              Оберіть категорію
+            </option>
+            {categories.map((entry) => (
+              <option key={recordId(entry.id)} value={recordId(entry.id)}>
+                {entry.name}
+              </option>
+            ))}
           </select>
           <FieldError errors={fieldErrors} name="categoryId" />
         </label>
@@ -67,7 +100,11 @@ export function EquipmentForm({
           Виробник
           <input
             name="manufacturer"
-            defaultValue={valueOf(state, "manufacturer", equipment?.manufacturer ?? "")}
+            defaultValue={valueOf(
+              state,
+              "manufacturer",
+              equipment?.manufacturer ?? "",
+            )}
             className={fieldClass(fieldErrors, "manufacturer")}
             aria-invalid={invalid(fieldErrors, "manufacturer")}
           />
@@ -89,7 +126,11 @@ export function EquipmentForm({
           Типовий технічний стан
           <select
             name="condition"
-            defaultValue={valueOf(state, "condition", equipment?.condition ?? "good")}
+            defaultValue={valueOf(
+              state,
+              "condition",
+              equipment?.condition ?? "good",
+            )}
             className={fieldClass(fieldErrors, "condition")}
             aria-invalid={invalid(fieldErrors, "condition")}
           >
@@ -120,7 +161,11 @@ export function EquipmentForm({
           <input
             name="acquisitionDate"
             type="date"
-            defaultValue={valueOf(state, "acquisitionDate", equipment?.acquisitionDate ?? "")}
+            defaultValue={valueOf(
+              state,
+              "acquisitionDate",
+              equipment?.acquisitionDate ?? "",
+            )}
             className={fieldClass(fieldErrors, "acquisitionDate")}
             aria-invalid={invalid(fieldErrors, "acquisitionDate")}
           />
@@ -130,9 +175,17 @@ export function EquipmentForm({
         <FileUpload label="Фото моделі або типу" />
       </div>
 
-      <FormFeedback formError={state.formError} fieldErrors={fieldErrors} success={state.success} />
+      <FormFeedback
+        formError={state.formError}
+        fieldErrors={fieldErrors}
+        success={state.success}
+      />
       <button className="primary-button" type="submit" disabled={pending}>
-        {pending ? "Зберігаємо…" : mode === "edit" ? "Зберегти картку" : "Створити картку обладнання"}
+        {pending
+          ? "Зберігаємо…"
+          : mode === "edit"
+            ? "Зберегти картку"
+            : "Створити картку обладнання"}
       </button>
     </form>
   );

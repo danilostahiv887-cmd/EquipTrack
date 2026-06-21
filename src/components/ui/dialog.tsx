@@ -28,7 +28,9 @@ export function Dialog({
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => setMounted(true), []);
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
     if (open) {
       const previousOverflow = document.body.style.overflow;
       document.body.style.overflow = "hidden";
@@ -41,6 +43,52 @@ export function Dialog({
     }
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
-  const modal = open && mounted ? createPortal(<div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}><section className={cn("dialog", dialogClassName)} role="dialog" aria-modal="true" aria-labelledby={titleId}><div className="dialog-heading"><div><p className="dialog-kicker">{kicker}</p><h2 id={titleId}>{title}</h2></div><Button ref={closeRef} variant="quiet" onClick={() => setOpen(false)}>Закрити</Button></div>{children}</section></div>, document.body) : null;
-  return <><button className={cn("action-stamp", triggerClassName)} type="button" onClick={() => setOpen(true)}>{icon !== false && <span>{icon}</span>}{label}</button>{modal}</>;
+  const modal =
+    open && mounted
+      ? createPortal(
+          <div
+            className="dialog-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setOpen(false);
+            }}
+          >
+            <section
+              className={cn("dialog", dialogClassName)}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={titleId}
+            >
+              <div className="dialog-heading">
+                <div>
+                  <p className="dialog-kicker">{kicker}</p>
+                  <h2 id={titleId}>{title}</h2>
+                </div>
+                <Button
+                  ref={closeRef}
+                  variant="quiet"
+                  onClick={() => setOpen(false)}
+                >
+                  Закрити
+                </Button>
+              </div>
+              {children}
+            </section>
+          </div>,
+          document.body,
+        )
+      : null;
+  return (
+    <>
+      <button
+        className={cn("action-stamp", triggerClassName)}
+        type="button"
+        onClick={() => setOpen(true)}
+      >
+        {icon !== false && <span>{icon}</span>}
+        {label}
+      </button>
+      {modal}
+    </>
+  );
 }

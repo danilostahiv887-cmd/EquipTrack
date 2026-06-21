@@ -1,23 +1,58 @@
 "use client";
 
 import { useActionState } from "react";
-import { FieldError, FormFeedback, fieldClass, invalid, labelClass } from "@/components/ui/form-errors";
+import {
+  FieldError,
+  FormFeedback,
+  fieldClass,
+  invalid,
+  labelClass,
+} from "@/components/ui/form-errors";
 import { recordId } from "@/lib/format";
-import { createUserAction, updateUserAction, type UserActionState } from "@/server/actions/users";
+import {
+  createUserAction,
+  updateUserAction,
+  type UserActionState,
+} from "@/server/actions/users";
 
 const initial: UserActionState = {};
-const formKey = (values?: Record<string, string>) => JSON.stringify(values ?? {});
-const valueOf = (state: UserActionState, name: string, fallback = "") => state.values?.[name] ?? fallback;
+const formKey = (values?: Record<string, string>) =>
+  JSON.stringify(values ?? {});
+const valueOf = (state: UserActionState, name: string, fallback = "") =>
+  state.values?.[name] ?? fallback;
 
-type UserFormData = { id?: unknown; fullName?: string; email?: string; role?: string; status?: string; position?: string };
+type UserFormData = {
+  id?: unknown;
+  fullName?: string;
+  email?: string;
+  role?: string;
+  status?: string;
+  position?: string;
+};
 
-export function UserForm({ user, mode = "create" }: { user?: UserFormData; mode?: "create" | "edit" }) {
-  const [state, action, pending] = useActionState(mode === "edit" ? updateUserAction : createUserAction, initial);
+export function UserForm({
+  user,
+  mode = "create",
+}: {
+  user?: UserFormData;
+  mode?: "create" | "edit";
+}) {
+  const [state, action, pending] = useActionState(
+    mode === "edit" ? updateUserAction : createUserAction,
+    initial,
+  );
   const fieldErrors = state.fieldErrors;
 
   return (
-    <form key={formKey(state.values)} action={action} noValidate className="passport-form">
-      {mode === "edit" && <input type="hidden" name="userId" value={recordId(user?.id ?? "")} />}
+    <form
+      key={formKey(state.values)}
+      action={action}
+      noValidate
+      className="passport-form"
+    >
+      {mode === "edit" && (
+        <input type="hidden" name="userId" value={recordId(user?.id ?? "")} />
+      )}
       <div className="form-grid">
         <label className={labelClass(fieldErrors, "fullName")}>
           Повне ім’я
@@ -47,7 +82,9 @@ export function UserForm({ user, mode = "create" }: { user?: UserFormData; mode?
           <input
             name="password"
             type="password"
-            placeholder={mode === "edit" ? "Залиште порожнім, щоб не змінювати" : undefined}
+            placeholder={
+              mode === "edit" ? "Залиште порожнім, щоб не змінювати" : undefined
+            }
             className={fieldClass(fieldErrors, "password")}
             aria-invalid={invalid(fieldErrors, "password")}
           />
@@ -97,9 +134,17 @@ export function UserForm({ user, mode = "create" }: { user?: UserFormData; mode?
         )}
       </div>
 
-      <FormFeedback formError={state.formError} fieldErrors={fieldErrors} success={state.success} />
+      <FormFeedback
+        formError={state.formError}
+        fieldErrors={fieldErrors}
+        success={state.success}
+      />
       <button className="primary-button" type="submit" disabled={pending}>
-        {pending ? "Зберігаємо…" : mode === "edit" ? "Зберегти користувача" : "Створити користувача"}
+        {pending
+          ? "Зберігаємо…"
+          : mode === "edit"
+            ? "Зберегти користувача"
+            : "Створити користувача"}
       </button>
     </form>
   );

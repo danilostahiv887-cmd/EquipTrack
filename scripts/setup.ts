@@ -5,8 +5,18 @@ import { seedDatabase } from "../src/lib/db/seed";
 withDatabase(async (db) => {
   for (const statement of schemaStatements) await db.query(statement);
   const result = await seedDatabase(db);
-  console.log(result.seeded ? "Схему й початкові дані створено." : "Схему перевірено, дані вже існують.");
-}).catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : "Не вдалося налаштувати застосунок.");
-  process.exitCode = 1;
-}).finally(closeDatabaseConnection);
+  console.log(
+    result.seeded
+      ? "Схему й початкові дані створено."
+      : "Схему перевірено, дані вже існують.",
+  );
+})
+  .catch((error: unknown) => {
+    console.error(
+      error instanceof Error
+        ? error.message
+        : "Не вдалося налаштувати застосунок.",
+    );
+    process.exitCode = 1;
+  })
+  .finally(closeDatabaseConnection);

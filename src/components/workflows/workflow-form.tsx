@@ -1,7 +1,13 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
-import { FieldError, FormFeedback, fieldClass, invalid, labelClass } from "@/components/ui/form-errors";
+import {
+  FieldError,
+  FormFeedback,
+  fieldClass,
+  invalid,
+  labelClass,
+} from "@/components/ui/form-errors";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { formatDateTime, label, recordId } from "@/lib/format";
 import {
@@ -18,7 +24,17 @@ import {
 
 const initial: WorkflowActionState = {};
 
-export type EquipmentOption = { id: unknown; equipmentId?: string; equipmentName?: string; inventoryNumber: string; serialNumber?: string; currentRoomId: string; roomLabel?: string; condition?: string; status?: string };
+export type EquipmentOption = {
+  id: unknown;
+  equipmentId?: string;
+  equipmentName?: string;
+  inventoryNumber: string;
+  serialNumber?: string;
+  currentRoomId: string;
+  roomLabel?: string;
+  condition?: string;
+  status?: string;
+};
 export type RoomOption = { id: unknown; number: string; name?: string };
 export type AuditItemOption = {
   id: unknown;
@@ -36,20 +52,42 @@ export type AuditItemOption = {
 };
 
 const submit = (pending: boolean, text: string) => (
-  <button className="primary-button" type="submit" disabled={pending}>{pending ? "Зберігаємо…" : text}</button>
+  <button className="primary-button" type="submit" disabled={pending}>
+    {pending ? "Зберігаємо…" : text}
+  </button>
 );
 
-const formKey = (values?: Record<string, string>) => JSON.stringify(values ?? {});
-const valueOf = (state: WorkflowActionState, name: string, fallback = "") => state.values?.[name] ?? fallback;
-const equipmentLabel = (item: EquipmentOption) => [item.equipmentName, item.inventoryNumber, item.serialNumber, item.roomLabel].filter(Boolean).join(" · ");
-const isCheckedAuditItem = (item: AuditItemOption) => Boolean(item.resultStatus && item.resultStatus !== "pending");
+const formKey = (values?: Record<string, string>) =>
+  JSON.stringify(values ?? {});
+const valueOf = (state: WorkflowActionState, name: string, fallback = "") =>
+  state.values?.[name] ?? fallback;
+const equipmentLabel = (item: EquipmentOption) =>
+  [item.equipmentName, item.inventoryNumber, item.serialNumber, item.roomLabel]
+    .filter(Boolean)
+    .join(" · ");
+const isCheckedAuditItem = (item: AuditItemOption) =>
+  Boolean(item.resultStatus && item.resultStatus !== "pending");
 
-export function TransferRequestForm({ equipment, rooms }: { equipment: EquipmentOption[]; rooms: RoomOption[] }) {
-  const [state, action, pending] = useActionState(createTransferRequestAction, initial);
+export function TransferRequestForm({
+  equipment,
+  rooms,
+}: {
+  equipment: EquipmentOption[];
+  rooms: RoomOption[];
+}) {
+  const [state, action, pending] = useActionState(
+    createTransferRequestAction,
+    initial,
+  );
   const fieldErrors = state.fieldErrors;
 
   return (
-    <form key={formKey(state.values)} action={action} noValidate className="passport-form">
+    <form
+      key={formKey(state.values)}
+      action={action}
+      noValidate
+      className="passport-form"
+    >
       <div className="form-grid">
         <label className={labelClass(fieldErrors, "equipmentId")}>
           Обладнання
@@ -59,9 +97,13 @@ export function TransferRequestForm({ equipment, rooms }: { equipment: Equipment
             className={fieldClass(fieldErrors, "equipmentId")}
             aria-invalid={invalid(fieldErrors, "equipmentId")}
           >
-            <option value="" disabled>Оберіть обладнання</option>
+            <option value="" disabled>
+              Оберіть обладнання
+            </option>
             {equipment.map((item) => (
-              <option key={recordId(item.id)} value={recordId(item.id)}>{equipmentLabel(item)}</option>
+              <option key={recordId(item.id)} value={recordId(item.id)}>
+                {equipmentLabel(item)}
+              </option>
             ))}
           </select>
           <FieldError errors={fieldErrors} name="equipmentId" />
@@ -75,8 +117,14 @@ export function TransferRequestForm({ equipment, rooms }: { equipment: Equipment
             className={fieldClass(fieldErrors, "fromRoomId")}
             aria-invalid={invalid(fieldErrors, "fromRoomId")}
           >
-            <option value="" disabled>Оберіть приміщення</option>
-            {rooms.map((room) => <option key={recordId(room.id)} value={recordId(room.id)}>{room.number}</option>)}
+            <option value="" disabled>
+              Оберіть приміщення
+            </option>
+            {rooms.map((room) => (
+              <option key={recordId(room.id)} value={recordId(room.id)}>
+                {room.number}
+              </option>
+            ))}
           </select>
           <FieldError errors={fieldErrors} name="fromRoomId" />
         </label>
@@ -89,8 +137,14 @@ export function TransferRequestForm({ equipment, rooms }: { equipment: Equipment
             className={fieldClass(fieldErrors, "toRoomId")}
             aria-invalid={invalid(fieldErrors, "toRoomId")}
           >
-            <option value="" disabled>Оберіть приміщення</option>
-            {rooms.map((room) => <option key={recordId(room.id)} value={recordId(room.id)}>{room.number}</option>)}
+            <option value="" disabled>
+              Оберіть приміщення
+            </option>
+            {rooms.map((room) => (
+              <option key={recordId(room.id)} value={recordId(room.id)}>
+                {room.number}
+              </option>
+            ))}
           </select>
           <FieldError errors={fieldErrors} name="toRoomId" />
         </label>
@@ -108,18 +162,36 @@ export function TransferRequestForm({ equipment, rooms }: { equipment: Equipment
         </label>
       </div>
 
-      <FormFeedback formError={state.formError} fieldErrors={fieldErrors} success={state.success} />
+      <FormFeedback
+        formError={state.formError}
+        fieldErrors={fieldErrors}
+        success={state.success}
+      />
       {submit(pending, "Подати заявку")}
     </form>
   );
 }
 
-export function MovementForm({ equipment, rooms }: { equipment: EquipmentOption[]; rooms: RoomOption[] }) {
-  const [state, action, pending] = useActionState(createMovementAction, initial);
+export function MovementForm({
+  equipment,
+  rooms,
+}: {
+  equipment: EquipmentOption[];
+  rooms: RoomOption[];
+}) {
+  const [state, action, pending] = useActionState(
+    createMovementAction,
+    initial,
+  );
   const fieldErrors = state.fieldErrors;
 
   return (
-    <form key={formKey(state.values)} action={action} noValidate className="passport-form">
+    <form
+      key={formKey(state.values)}
+      action={action}
+      noValidate
+      className="passport-form"
+    >
       <div className="form-grid">
         <label className={labelClass(fieldErrors, "equipmentId")}>
           Обладнання
@@ -129,9 +201,13 @@ export function MovementForm({ equipment, rooms }: { equipment: EquipmentOption[
             className={fieldClass(fieldErrors, "equipmentId")}
             aria-invalid={invalid(fieldErrors, "equipmentId")}
           >
-            <option value="" disabled>Оберіть обладнання</option>
+            <option value="" disabled>
+              Оберіть обладнання
+            </option>
             {equipment.map((item) => (
-              <option key={recordId(item.id)} value={recordId(item.id)}>{equipmentLabel(item)}</option>
+              <option key={recordId(item.id)} value={recordId(item.id)}>
+                {equipmentLabel(item)}
+              </option>
             ))}
           </select>
           <FieldError errors={fieldErrors} name="equipmentId" />
@@ -162,9 +238,14 @@ export function MovementForm({ equipment, rooms }: { equipment: EquipmentOption[
             className={fieldClass(fieldErrors, "toRoomId")}
             aria-invalid={invalid(fieldErrors, "toRoomId")}
           >
-            <option value="" disabled>Оберіть приміщення</option>
+            <option value="" disabled>
+              Оберіть приміщення
+            </option>
             {rooms.map((room) => (
-              <option key={recordId(room.id)} value={recordId(room.id)}>{room.number}{room.name ? ` · ${room.name}` : ""}</option>
+              <option key={recordId(room.id)} value={recordId(room.id)}>
+                {room.number}
+                {room.name ? ` · ${room.name}` : ""}
+              </option>
             ))}
           </select>
           <FieldError errors={fieldErrors} name="toRoomId" />
@@ -184,18 +265,33 @@ export function MovementForm({ equipment, rooms }: { equipment: EquipmentOption[
         </label>
       </div>
 
-      <FormFeedback formError={state.formError} fieldErrors={fieldErrors} success={state.success} />
+      <FormFeedback
+        formError={state.formError}
+        fieldErrors={fieldErrors}
+        success={state.success}
+      />
       {submit(pending, "Створити рух")}
     </form>
   );
 }
 
-export function RepairForm({ equipment, rooms }: { equipment: EquipmentOption[]; rooms: RoomOption[] }) {
+export function RepairForm({
+  equipment,
+  rooms,
+}: {
+  equipment: EquipmentOption[];
+  rooms: RoomOption[];
+}) {
   const [state, action, pending] = useActionState(createRepairAction, initial);
   const fieldErrors = state.fieldErrors;
 
   return (
-    <form key={formKey(state.values)} action={action} noValidate className="passport-form">
+    <form
+      key={formKey(state.values)}
+      action={action}
+      noValidate
+      className="passport-form"
+    >
       <div className="form-grid">
         <label className={labelClass(fieldErrors, "equipmentId")}>
           Обладнання
@@ -205,8 +301,14 @@ export function RepairForm({ equipment, rooms }: { equipment: EquipmentOption[];
             className={fieldClass(fieldErrors, "equipmentId")}
             aria-invalid={invalid(fieldErrors, "equipmentId")}
           >
-            <option value="" disabled>Оберіть обладнання</option>
-            {equipment.map((item) => <option key={recordId(item.id)} value={recordId(item.id)}>{equipmentLabel(item)}</option>)}
+            <option value="" disabled>
+              Оберіть обладнання
+            </option>
+            {equipment.map((item) => (
+              <option key={recordId(item.id)} value={recordId(item.id)}>
+                {equipmentLabel(item)}
+              </option>
+            ))}
           </select>
           <FieldError errors={fieldErrors} name="equipmentId" />
         </label>
@@ -219,8 +321,14 @@ export function RepairForm({ equipment, rooms }: { equipment: EquipmentOption[];
             className={fieldClass(fieldErrors, "roomId")}
             aria-invalid={invalid(fieldErrors, "roomId")}
           >
-            <option value="" disabled>Оберіть приміщення</option>
-            {rooms.map((room) => <option key={recordId(room.id)} value={recordId(room.id)}>{room.number}</option>)}
+            <option value="" disabled>
+              Оберіть приміщення
+            </option>
+            {rooms.map((room) => (
+              <option key={recordId(room.id)} value={recordId(room.id)}>
+                {room.number}
+              </option>
+            ))}
           </select>
           <FieldError errors={fieldErrors} name="roomId" />
         </label>
@@ -253,7 +361,11 @@ export function RepairForm({ equipment, rooms }: { equipment: EquipmentOption[];
         </label>
       </div>
 
-      <FormFeedback formError={state.formError} fieldErrors={fieldErrors} success={state.success} />
+      <FormFeedback
+        formError={state.formError}
+        fieldErrors={fieldErrors}
+        success={state.success}
+      />
       {submit(pending, "Повідомити про несправність")}
     </form>
   );
@@ -269,13 +381,31 @@ type AuditFormData = {
   auditNote?: string;
 };
 
-export function AuditForm({ rooms, audit, mode = "create" }: { rooms: RoomOption[]; audit?: AuditFormData; mode?: "create" | "edit" }) {
-  const [state, action, pending] = useActionState(mode === "edit" ? updateAuditAction : createAuditAction, initial);
+export function AuditForm({
+  rooms,
+  audit,
+  mode = "create",
+}: {
+  rooms: RoomOption[];
+  audit?: AuditFormData;
+  mode?: "create" | "edit";
+}) {
+  const [state, action, pending] = useActionState(
+    mode === "edit" ? updateAuditAction : createAuditAction,
+    initial,
+  );
   const fieldErrors = state.fieldErrors;
 
   return (
-    <form key={formKey(state.values)} action={action} noValidate className="passport-form">
-      {mode === "edit" && <input type="hidden" name="auditId" value={recordId(audit?.id ?? "")} />}
+    <form
+      key={formKey(state.values)}
+      action={action}
+      noValidate
+      className="passport-form"
+    >
+      {mode === "edit" && (
+        <input type="hidden" name="auditId" value={recordId(audit?.id ?? "")} />
+      )}
       <div className="form-grid">
         <label className={labelClass(fieldErrors, "title")}>
           Назва
@@ -296,8 +426,14 @@ export function AuditForm({ rooms, audit, mode = "create" }: { rooms: RoomOption
             className={fieldClass(fieldErrors, "roomId")}
             aria-invalid={invalid(fieldErrors, "roomId")}
           >
-            <option value="" disabled>Оберіть приміщення</option>
-            {rooms.map((room) => <option key={recordId(room.id)} value={recordId(room.id)}>{room.number}</option>)}
+            <option value="" disabled>
+              Оберіть приміщення
+            </option>
+            {rooms.map((room) => (
+              <option key={recordId(room.id)} value={recordId(room.id)}>
+                {room.number}
+              </option>
+            ))}
           </select>
           <FieldError errors={fieldErrors} name="roomId" />
         </label>
@@ -307,7 +443,11 @@ export function AuditForm({ rooms, audit, mode = "create" }: { rooms: RoomOption
           <input
             name="plannedDate"
             type="date"
-            defaultValue={valueOf(state, "plannedDate", audit?.plannedDate ? String(audit.plannedDate).slice(0, 10) : "")}
+            defaultValue={valueOf(
+              state,
+              "plannedDate",
+              audit?.plannedDate ? String(audit.plannedDate).slice(0, 10) : "",
+            )}
             className={fieldClass(fieldErrors, "plannedDate")}
             aria-invalid={invalid(fieldErrors, "plannedDate")}
           />
@@ -321,7 +461,13 @@ export function AuditForm({ rooms, audit, mode = "create" }: { rooms: RoomOption
             type="number"
             min="0"
             inputMode="numeric"
-            defaultValue={valueOf(state, "expectedItemCount", audit?.expectedItemCount != null ? String(audit.expectedItemCount) : "")}
+            defaultValue={valueOf(
+              state,
+              "expectedItemCount",
+              audit?.expectedItemCount != null
+                ? String(audit.expectedItemCount)
+                : "",
+            )}
             className={fieldClass(fieldErrors, "expectedItemCount")}
             aria-invalid={invalid(fieldErrors, "expectedItemCount")}
           />
@@ -355,13 +501,27 @@ export function AuditForm({ rooms, audit, mode = "create" }: { rooms: RoomOption
         </label>
       </div>
 
-      <FormFeedback formError={state.formError} fieldErrors={fieldErrors} success={state.success} />
+      <FormFeedback
+        formError={state.formError}
+        fieldErrors={fieldErrors}
+        success={state.success}
+      />
       {submit(pending, mode === "edit" ? "Оновити аудит" : "Створити аудит")}
     </form>
   );
 }
 
-export function AuditScanForm({ auditId, auditRoomId, equipment, auditItems }: { auditId: unknown; auditRoomId?: string; equipment: EquipmentOption[]; auditItems: AuditItemOption[] }) {
+export function AuditScanForm({
+  auditId,
+  auditRoomId,
+  equipment,
+  auditItems,
+}: {
+  auditId: unknown;
+  auditRoomId?: string;
+  equipment: EquipmentOption[];
+  auditItems: AuditItemOption[];
+}) {
   const [state, action, pending] = useActionState(scanAuditItemAction, initial);
   const fieldErrors = state.fieldErrors;
   const [query, setQuery] = useState("");
@@ -374,52 +534,120 @@ export function AuditScanForm({ auditId, auditRoomId, equipment, auditItems }: {
   }, [state.success]);
   const normalizedAuditRoom = auditRoomId ? recordId(auditRoomId) : "";
   const auditIdText = recordId(auditId);
-  const equipmentById = useMemo(() => new Map(equipment.map((item) => [recordId(item.id), item])), [equipment]);
-  const checkedItems = useMemo(() => auditItems.filter(isCheckedAuditItem), [auditItems]);
-  const checkedEquipmentIds = useMemo(() => new Set(checkedItems.map((item) => item.equipmentId ? recordId(item.equipmentId) : "").filter(Boolean)), [checkedItems]);
+  const equipmentById = useMemo(
+    () => new Map(equipment.map((item) => [recordId(item.id), item])),
+    [equipment],
+  );
+  const checkedItems = useMemo(
+    () => auditItems.filter(isCheckedAuditItem),
+    [auditItems],
+  );
+  const checkedEquipmentIds = useMemo(
+    () =>
+      new Set(
+        checkedItems
+          .map((item) => (item.equipmentId ? recordId(item.equipmentId) : ""))
+          .filter(Boolean),
+      ),
+    [checkedItems],
+  );
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const availableEquipment = useMemo(() => equipment.filter((item) => !checkedEquipmentIds.has(recordId(item.id)) || selectedIdSet.has(recordId(item.id))), [checkedEquipmentIds, equipment, selectedIdSet]);
-  const selectedEquipment = useMemo(() => selectedIds.map((id) => equipmentById.get(id)).filter((item): item is EquipmentOption => Boolean(item)), [equipmentById, selectedIds]);
+  const availableEquipment = useMemo(
+    () =>
+      equipment.filter(
+        (item) =>
+          !checkedEquipmentIds.has(recordId(item.id)) ||
+          selectedIdSet.has(recordId(item.id)),
+      ),
+    [checkedEquipmentIds, equipment, selectedIdSet],
+  );
+  const selectedEquipment = useMemo(
+    () =>
+      selectedIds
+        .map((id) => equipmentById.get(id))
+        .filter((item): item is EquipmentOption => Boolean(item)),
+    [equipmentById, selectedIds],
+  );
   const toggleSelected = (id: string) => {
-    setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id],
+    );
   };
   const filteredEquipment = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const rows = needle
-      ? availableEquipment.filter((item) => equipmentLabel(item).toLowerCase().includes(needle))
+      ? availableEquipment.filter((item) =>
+          equipmentLabel(item).toLowerCase().includes(needle),
+        )
       : availableEquipment;
     return rows
       .slice()
       .sort((left, right) => {
-        const leftSameRoom = normalizedAuditRoom && recordId(left.currentRoomId) === normalizedAuditRoom ? 0 : 1;
-        const rightSameRoom = normalizedAuditRoom && recordId(right.currentRoomId) === normalizedAuditRoom ? 0 : 1;
-        return leftSameRoom - rightSameRoom || equipmentLabel(left).localeCompare(equipmentLabel(right), "uk");
+        const leftSameRoom =
+          normalizedAuditRoom &&
+          recordId(left.currentRoomId) === normalizedAuditRoom
+            ? 0
+            : 1;
+        const rightSameRoom =
+          normalizedAuditRoom &&
+          recordId(right.currentRoomId) === normalizedAuditRoom
+            ? 0
+            : 1;
+        return (
+          leftSameRoom - rightSameRoom ||
+          equipmentLabel(left).localeCompare(equipmentLabel(right), "uk")
+        );
       })
       .slice(0, 18);
   }, [availableEquipment, normalizedAuditRoom, query]);
 
   return (
     <div className="audit-scan-stack">
-      <section className="audit-checked-panel" aria-label="Вже внесені екземпляри аудиту">
+      <section
+        className="audit-checked-panel"
+        aria-label="Вже внесені екземпляри аудиту"
+      >
         <div className="audit-checked-heading">
           <div>
             <strong>Уже внесено</strong>
-            <span>{checkedItems.length ? `${checkedItems.length} позицій не показуються у пошуку повторно.` : "Після внесення екземпляри з’являться тут."}</span>
+            <span>
+              {checkedItems.length
+                ? `${checkedItems.length} позицій не показуються у пошуку повторно.`
+                : "Після внесення екземпляри з’являться тут."}
+            </span>
           </div>
           <small>{auditItems.length} рядків у відомості аудиту</small>
         </div>
         <div className="audit-checked-list">
           {checkedItems.map((item) => {
             const itemId = recordId(item.id);
-            const equipmentItem = item.equipmentId ? equipmentById.get(recordId(item.equipmentId)) : undefined;
-            const title = equipmentItem?.equipmentName ?? item.scannedCode ?? "Невідомий номер";
-            const numbers = equipmentItem ? `${equipmentItem.inventoryNumber} · ${equipmentItem.serialNumber}` : item.scannedCode ?? "Номер не вказано";
+            const equipmentItem = item.equipmentId
+              ? equipmentById.get(recordId(item.equipmentId))
+              : undefined;
+            const title =
+              equipmentItem?.equipmentName ??
+              item.scannedCode ??
+              "Невідомий номер";
+            const numbers = equipmentItem
+              ? `${equipmentItem.inventoryNumber} · ${equipmentItem.serialNumber}`
+              : (item.scannedCode ?? "Номер не вказано");
             return (
               <article key={itemId} className="audit-checked-item">
                 <div>
                   <strong>{title}</strong>
                   <span>{numbers}</span>
-                  <small>{[equipmentItem?.roomLabel, item.resultStatus && label(item.resultStatus), item.actualCondition && label(item.actualCondition), item.checkedAt && formatDateTime(item.checkedAt)].filter(Boolean).join(" · ")}</small>
+                  <small>
+                    {[
+                      equipmentItem?.roomLabel,
+                      item.resultStatus && label(item.resultStatus),
+                      item.actualCondition && label(item.actualCondition),
+                      item.checkedAt && formatDateTime(item.checkedAt),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </small>
                   {item.note && <em>{item.note}</em>}
                 </div>
                 <form action={deleteAuditItemAction}>
@@ -440,15 +668,29 @@ export function AuditScanForm({ auditId, auditRoomId, equipment, auditItems }: {
         </div>
       </section>
 
-      <form key={formKey(state.values)} action={action} noValidate className="passport-form audit-scan-form">
+      <form
+        key={formKey(state.values)}
+        action={action}
+        noValidate
+        className="passport-form audit-scan-form"
+      >
         <input type="hidden" name="auditId" value={auditIdText} />
-        {selectedIds.map((id) => <input key={id} type="hidden" name="equipmentIds" value={id} />)}
+        {selectedIds.map((id) => (
+          <input key={id} type="hidden" name="equipmentIds" value={id} />
+        ))}
 
         <div className="audit-search-panel">
           <div className="audit-search-copy">
             <strong>Знайдений екземпляр</strong>
-            <span>Виберіть конкретну фізичну одиницю або введіть серійний / інвентарний номер вручну.</span>
-            <small>{filteredEquipment.length} результатів із {availableEquipment.length} доступних; {checkedItems.length} уже внесено</small>
+            <span>
+              Виберіть конкретну фізичну одиницю або введіть серійний /
+              інвентарний номер вручну.
+            </span>
+            <small>
+              {filteredEquipment.length} результатів із{" "}
+              {availableEquipment.length} доступних; {checkedItems.length} уже
+              внесено
+            </small>
           </div>
           <label className={labelClass(fieldErrors, "equipmentId")}>
             Пошук у реєстрі
@@ -466,17 +708,44 @@ export function AuditScanForm({ auditId, auditRoomId, equipment, auditItems }: {
         {selectedEquipment.length > 0 && (
           <div className="audit-selected-equipment">
             <span>Обрано {selectedEquipment.length}</span>
-            <strong>{selectedEquipment.slice(0, 3).map((item) => item.equipmentName).join("; ")}{selectedEquipment.length > 3 ? "…" : ""}</strong>
-            <code>{selectedEquipment.slice(0, 4).map((item) => item.inventoryNumber).join("; ")}</code>
-            <small>{selectedEquipment.some((item) => normalizedAuditRoom && recordId(item.currentRoomId) !== normalizedAuditRoom) ? "У виборі є екземпляри з інших приміщень" : "Усі вибрані закріплені за цією аудиторією"}</small>
-            <button type="button" onClick={() => setSelectedIds([])}>Очистити вибір</button>
+            <strong>
+              {selectedEquipment
+                .slice(0, 3)
+                .map((item) => item.equipmentName)
+                .join("; ")}
+              {selectedEquipment.length > 3 ? "…" : ""}
+            </strong>
+            <code>
+              {selectedEquipment
+                .slice(0, 4)
+                .map((item) => item.inventoryNumber)
+                .join("; ")}
+            </code>
+            <small>
+              {selectedEquipment.some(
+                (item) =>
+                  normalizedAuditRoom &&
+                  recordId(item.currentRoomId) !== normalizedAuditRoom,
+              )
+                ? "У виборі є екземпляри з інших приміщень"
+                : "Усі вибрані закріплені за цією аудиторією"}
+            </small>
+            <button type="button" onClick={() => setSelectedIds([])}>
+              Очистити вибір
+            </button>
           </div>
         )}
 
-        <div className="audit-equipment-picker" role="listbox" aria-label="Результати пошуку екземплярів">
+        <div
+          className="audit-equipment-picker"
+          role="listbox"
+          aria-label="Результати пошуку екземплярів"
+        >
           {filteredEquipment.map((item) => {
             const id = recordId(item.id);
-            const sameRoom = normalizedAuditRoom && recordId(item.currentRoomId) === normalizedAuditRoom;
+            const sameRoom =
+              normalizedAuditRoom &&
+              recordId(item.currentRoomId) === normalizedAuditRoom;
             const isActive = selectedIdSet.has(id);
             return (
               <button
@@ -487,21 +756,32 @@ export function AuditScanForm({ auditId, auditRoomId, equipment, auditItems }: {
                 role="option"
                 aria-selected={isActive}
               >
-                <span className="audit-equipment-check" aria-hidden="true">{isActive ? "✓" : "+"}</span>
+                <span className="audit-equipment-check" aria-hidden="true">
+                  {isActive ? "✓" : "+"}
+                </span>
                 <span className="audit-equipment-main">
                   <strong>{item.equipmentName}</strong>
-                  <small>{item.inventoryNumber} · {item.serialNumber}</small>
+                  <small>
+                    {item.inventoryNumber} · {item.serialNumber}
+                  </small>
                 </span>
                 <span className="audit-equipment-room">
                   {item.roomLabel || "Приміщення не вказано"}
                 </span>
-                <span className={`audit-room-marker ${sameRoom ? "audit-room-marker-ok" : "audit-room-marker-warn"}`}>
+                <span
+                  className={`audit-room-marker ${sameRoom ? "audit-room-marker-ok" : "audit-room-marker-warn"}`}
+                >
                   {sameRoom ? "у цій аудиторії" : "інше приміщення"}
                 </span>
               </button>
             );
           })}
-          {filteredEquipment.length === 0 && <p className="audit-search-empty">За цим запитом екземпляр не знайдено або всі знайдені позиції вже внесені. Можна внести номер вручну нижче.</p>}
+          {filteredEquipment.length === 0 && (
+            <p className="audit-search-empty">
+              За цим запитом екземпляр не знайдено або всі знайдені позиції вже
+              внесені. Можна внести номер вручну нижче.
+            </p>
+          )}
         </div>
 
         <div className="form-grid audit-scan-fields">
@@ -548,19 +828,36 @@ export function AuditScanForm({ auditId, auditRoomId, equipment, auditItems }: {
           </label>
         </div>
 
-        <FormFeedback formError={state.formError} fieldErrors={fieldErrors} success={state.success} />
-        {submit(pending, selectedEquipment.length > 1 ? `Внести ${selectedEquipment.length} екземпляри` : "Внести екземпляр")}
+        <FormFeedback
+          formError={state.formError}
+          fieldErrors={fieldErrors}
+          success={state.success}
+        />
+        {submit(
+          pending,
+          selectedEquipment.length > 1
+            ? `Внести ${selectedEquipment.length} екземпляри`
+            : "Внести екземпляр",
+        )}
       </form>
     </div>
   );
 }
 
 export function WriteoffForm({ equipment }: { equipment: EquipmentOption[] }) {
-  const [state, action, pending] = useActionState(createWriteoffAction, initial);
+  const [state, action, pending] = useActionState(
+    createWriteoffAction,
+    initial,
+  );
   const fieldErrors = state.fieldErrors;
 
   return (
-    <form key={formKey(state.values)} action={action} noValidate className="passport-form">
+    <form
+      key={formKey(state.values)}
+      action={action}
+      noValidate
+      className="passport-form"
+    >
       <div className="form-grid">
         <label className={labelClass(fieldErrors, "equipmentId")}>
           Обладнання
@@ -570,9 +867,13 @@ export function WriteoffForm({ equipment }: { equipment: EquipmentOption[] }) {
             className={fieldClass(fieldErrors, "equipmentId")}
             aria-invalid={invalid(fieldErrors, "equipmentId")}
           >
-            <option value="" disabled>Оберіть обладнання</option>
+            <option value="" disabled>
+              Оберіть обладнання
+            </option>
             {equipment.map((item) => (
-              <option key={recordId(item.id)} value={recordId(item.id)}>{equipmentLabel(item)}</option>
+              <option key={recordId(item.id)} value={recordId(item.id)}>
+                {equipmentLabel(item)}
+              </option>
             ))}
           </select>
           <FieldError errors={fieldErrors} name="equipmentId" />
@@ -591,7 +892,11 @@ export function WriteoffForm({ equipment }: { equipment: EquipmentOption[] }) {
         </label>
       </div>
 
-      <FormFeedback formError={state.formError} fieldErrors={fieldErrors} success={state.success} />
+      <FormFeedback
+        formError={state.formError}
+        fieldErrors={fieldErrors}
+        success={state.success}
+      />
       {submit(pending, "Подати на списання")}
     </form>
   );

@@ -11,13 +11,19 @@ const globalForDatabase = globalThis as typeof globalThis & {
   __equiptrackDatabase?: DatabaseState;
 };
 
-const databaseState = globalForDatabase.__equiptrackDatabase ??= {};
+const databaseState = (globalForDatabase.__equiptrackDatabase ??= {});
 
 async function connectDatabase() {
   const db = new Surreal();
   await db.connect(env.surrealUrl);
-  await db.signin({ username: env.surrealUsername, password: env.surrealPassword });
-  await db.use({ namespace: env.surrealNamespace, database: env.surrealDatabase });
+  await db.signin({
+    username: env.surrealUsername,
+    password: env.surrealPassword,
+  });
+  await db.use({
+    namespace: env.surrealNamespace,
+    database: env.surrealDatabase,
+  });
   return db;
 }
 
@@ -44,7 +50,9 @@ export async function closeDatabaseConnection() {
   if (client) await client.close().catch(() => undefined);
 }
 
-export async function withDatabase<T>(work: (db: Surreal) => Promise<T>): Promise<T> {
+export async function withDatabase<T>(
+  work: (db: Surreal) => Promise<T>,
+): Promise<T> {
   const db = await getDatabase();
   try {
     return await work(db);

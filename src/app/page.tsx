@@ -11,7 +11,9 @@ export default async function HomePage() {
   try {
     user = await getCurrentUser();
   } catch {
-    return <DatabaseWakeScreen reason="Головна сторінка очікує, поки SurrealDB стане доступною." />;
+    return (
+      <DatabaseWakeScreen reason="Головна сторінка очікує, поки SurrealDB стане доступною." />
+    );
   }
   redirect(user ? "/dashboard" : "/login");
 }

@@ -7,8 +7,16 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Потрібна авторизація." }, { status: 401 });
-  if (!can(user, "writeoff:propose")) return NextResponse.json({ error: "Недостатньо прав." }, { status: 403 });
+  if (!user)
+    return NextResponse.json(
+      { error: "Потрібна авторизація." },
+      { status: 401 },
+    );
+  if (!can(user, "writeoff:propose"))
+    return NextResponse.json({ error: "Недостатньо прав." }, { status: 403 });
   const equipment = await getWriteoffEquipmentOptions();
-  return NextResponse.json({ equipment }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(
+    { equipment },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }

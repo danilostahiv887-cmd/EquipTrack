@@ -1,13 +1,28 @@
 "use client";
 
 import { useActionState } from "react";
-import { FieldError, FormFeedback, fieldClass, invalid, labelClass } from "@/components/ui/form-errors";
+import {
+  FieldError,
+  FormFeedback,
+  fieldClass,
+  invalid,
+  labelClass,
+} from "@/components/ui/form-errors";
 import { recordId } from "@/lib/format";
-import { createRoomAction, updateRoomAction, type RoomActionState } from "@/server/actions/rooms";
+import {
+  createRoomAction,
+  updateRoomAction,
+  type RoomActionState,
+} from "@/server/actions/rooms";
 
 const initial: RoomActionState = {};
-const formKey = (values?: Record<string, string>) => JSON.stringify(values ?? {});
-const valueOf = (state: RoomActionState, name: string, fallback: string | number = "") => state.values?.[name] ?? fallback;
+const formKey = (values?: Record<string, string>) =>
+  JSON.stringify(values ?? {});
+const valueOf = (
+  state: RoomActionState,
+  name: string,
+  fallback: string | number = "",
+) => state.values?.[name] ?? fallback;
 
 type RoomFormData = {
   id?: unknown;
@@ -35,12 +50,22 @@ export function RoomForm({
   room?: RoomFormData;
   mode?: "create" | "edit";
 }) {
-  const [state, action, pending] = useActionState(mode === "edit" ? updateRoomAction : createRoomAction, initial);
+  const [state, action, pending] = useActionState(
+    mode === "edit" ? updateRoomAction : createRoomAction,
+    initial,
+  );
   const fieldErrors = state.fieldErrors;
 
   return (
-    <form key={formKey(state.values)} noValidate action={action} className="passport-form">
-      {mode === "edit" && <input type="hidden" name="roomId" value={recordId(room?.id ?? "")} />}
+    <form
+      key={formKey(state.values)}
+      noValidate
+      action={action}
+      className="passport-form"
+    >
+      {mode === "edit" && (
+        <input type="hidden" name="roomId" value={recordId(room?.id ?? "")} />
+      )}
 
       <div className="form-grid">
         <label className={labelClass(fieldErrors, "number")}>
@@ -73,8 +98,14 @@ export function RoomForm({
             className={fieldClass(fieldErrors, "buildingId")}
             aria-invalid={invalid(fieldErrors, "buildingId")}
           >
-            <option value="" disabled>Оберіть корпус</option>
-            {buildings.map((entry) => <option key={recordId(entry.id)} value={recordId(entry.id)}>{entry.name}</option>)}
+            <option value="" disabled>
+              Оберіть корпус
+            </option>
+            {buildings.map((entry) => (
+              <option key={recordId(entry.id)} value={recordId(entry.id)}>
+                {entry.name}
+              </option>
+            ))}
           </select>
           <FieldError errors={fieldErrors} name="buildingId" />
         </label>
@@ -87,8 +118,14 @@ export function RoomForm({
             className={fieldClass(fieldErrors, "roomTypeId")}
             aria-invalid={invalid(fieldErrors, "roomTypeId")}
           >
-            <option value="" disabled>Оберіть тип</option>
-            {types.map((entry) => <option key={recordId(entry.id)} value={recordId(entry.id)}>{entry.name}</option>)}
+            <option value="" disabled>
+              Оберіть тип
+            </option>
+            {types.map((entry) => (
+              <option key={recordId(entry.id)} value={recordId(entry.id)}>
+                {entry.name}
+              </option>
+            ))}
           </select>
           <FieldError errors={fieldErrors} name="roomTypeId" />
         </label>
@@ -97,12 +134,20 @@ export function RoomForm({
           Відповідальна особа
           <select
             name="responsibleId"
-            defaultValue={valueOf(state, "responsibleId", room?.responsibleId ?? "")}
+            defaultValue={valueOf(
+              state,
+              "responsibleId",
+              room?.responsibleId ?? "",
+            )}
             className={fieldClass(fieldErrors, "responsibleId")}
             aria-invalid={invalid(fieldErrors, "responsibleId")}
           >
             <option value="">Не призначено</option>
-            {users.map((entry) => <option key={recordId(entry.id)} value={recordId(entry.id)}>{entry.fullName}</option>)}
+            {users.map((entry) => (
+              <option key={recordId(entry.id)} value={recordId(entry.id)}>
+                {entry.fullName}
+              </option>
+            ))}
           </select>
           <FieldError errors={fieldErrors} name="responsibleId" />
         </label>
@@ -151,7 +196,11 @@ export function RoomForm({
           <textarea
             name="description"
             rows={3}
-            defaultValue={valueOf(state, "description", room?.description ?? "")}
+            defaultValue={valueOf(
+              state,
+              "description",
+              room?.description ?? "",
+            )}
             className={fieldClass(fieldErrors, "description")}
             aria-invalid={invalid(fieldErrors, "description")}
           />
@@ -161,7 +210,11 @@ export function RoomForm({
 
       <FormFeedback formError={state.formError} fieldErrors={fieldErrors} />
       <button className="primary-button" type="submit" disabled={pending}>
-        {pending ? "Зберігаємо…" : mode === "edit" ? "Зберегти зміни" : "Створити приміщення"}
+        {pending
+          ? "Зберігаємо…"
+          : mode === "edit"
+            ? "Зберегти зміни"
+            : "Створити приміщення"}
       </button>
     </form>
   );

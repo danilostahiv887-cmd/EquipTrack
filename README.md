@@ -132,12 +132,12 @@ EquipTrack2026!
 
 Основні акаунти:
 
-| Роль | Email | Користувач |
-|---|---|---|
-| Адміністратор | `stakhiv.andrii.ihorovych@gmail.com` | Стахів Андрій Ігорович |
-| Менеджер обліку | `yatsynych.oksana.borysivna@gmail.com` | Яцинич Оксана Борисівна |
+| Роль            | Email                                     | Користувач                  |
+| --------------- | ----------------------------------------- | --------------------------- |
+| Адміністратор   | `stakhiv.andrii.ihorovych@gmail.com`      | Стахів Андрій Ігорович      |
+| Менеджер обліку | `yatsynych.oksana.borysivna@gmail.com`    | Яцинич Оксана Борисівна     |
 | Менеджер обліку | `lazariv.mykhailo.mykolaiovych@gmail.com` | Лазарів Михайло Миколайович |
-| Працівник | `prokopiv.roman.vasylovych@gmail.com` | Прокопів Роман Васильович |
+| Працівник       | `prokopiv.roman.vasylovych@gmail.com`     | Прокопів Роман Васильович   |
 
 Після першого реального розгортання змініть пароль адміністратора.
 
@@ -221,15 +221,15 @@ EquipTrack2026!
 
 Рекомендовані налаштування Render:
 
-| Поле Render | Значення |
-|---|---|
-| Service Type | `Web Service` |
-| Runtime / Language | `Node` |
-| Branch | `main` |
-| Root Directory | порожньо, якщо репозиторій містить цей проєкт у корені |
-| Build Command | `npm ci && npm run setup && npm run build` |
-| Start Command | `npm run start` |
-| Auto-Deploy | `Yes` |
+| Поле Render        | Значення                                               |
+| ------------------ | ------------------------------------------------------ |
+| Service Type       | `Web Service`                                          |
+| Runtime / Language | `Node`                                                 |
+| Branch             | `main`                                                 |
+| Root Directory     | порожньо, якщо репозиторій містить цей проєкт у корені |
+| Build Command      | `npm ci && npm run setup && npm run build`             |
+| Start Command      | `npm run start`                                        |
+| Auto-Deploy        | `Yes`                                                  |
 
 Node.js версія зафіксована у файлі `.node-version`.
 

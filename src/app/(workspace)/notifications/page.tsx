@@ -7,7 +7,16 @@ import { label, recordId } from "@/lib/format";
 
 const typeOptions = ["system", "transfer_request", "equipment_assigned"];
 
-export default async function NotificationsPage({ searchParams }: { searchParams: Promise<{ page?: string; q?: string; read?: string; type?: string }> }) {
+export default async function NotificationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    page?: string;
+    q?: string;
+    read?: string;
+    type?: string;
+  }>;
+}) {
   const search = await searchParams;
   const page = Math.max(1, Number(search.page ?? 1));
   const rows = await getWorkflowPage("notifications", page, search);
@@ -21,33 +30,61 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         </div>
       </header>
       <form className="filter-line">
-        <input name="q" defaultValue={search.q} placeholder="Назва, текст, користувач або тип повідомлення" />
-        <select name="read" defaultValue={search.read ?? ""} aria-label="Фільтр за прочитанням">
+        <input
+          name="q"
+          defaultValue={search.q}
+          placeholder="Назва, текст, користувач або тип повідомлення"
+        />
+        <select
+          name="read"
+          defaultValue={search.read ?? ""}
+          aria-label="Фільтр за прочитанням"
+        >
           <option value="">Усі повідомлення</option>
           <option value="unread">Непрочитані</option>
           <option value="read">Прочитані</option>
         </select>
-        <select name="type" defaultValue={search.type ?? ""} aria-label="Фільтр за типом повідомлення">
+        <select
+          name="type"
+          defaultValue={search.type ?? ""}
+          aria-label="Фільтр за типом повідомлення"
+        >
           <option value="">Усі типи</option>
-          {typeOptions.map((type) => <option key={type} value={type}>{label(type)}</option>)}
+          {typeOptions.map((type) => (
+            <option key={type} value={type}>
+              {label(type)}
+            </option>
+          ))}
         </select>
         <button type="submit">Шукати</button>
       </form>
       <WorkflowList
         rows={rows.items}
-        actions={(row) => row.isRead === true ? null : (
-          <form action={markNotificationReadAction}>
-            <input type="hidden" name="notificationId" value={recordId(row.id)} />
-            <ConfirmSubmit
-              label="Позначити прочитаним"
-              title="Позначити сповіщення прочитаним?"
-              description="Сповіщення залишиться в журналі, але більше не буде показуватись як нове."
-              confirmLabel="Позначити"
-            />
-          </form>
-        )}
+        actions={(row) =>
+          row.isRead === true ? null : (
+            <form action={markNotificationReadAction}>
+              <input
+                type="hidden"
+                name="notificationId"
+                value={recordId(row.id)}
+              />
+              <ConfirmSubmit
+                label="Позначити прочитаним"
+                title="Позначити сповіщення прочитаним?"
+                description="Сповіщення залишиться в журналі, але більше не буде показуватись як нове."
+                confirmLabel="Позначити"
+              />
+            </form>
+          )
+        }
       />
-      <Pagination path="/notifications" page={rows.page} total={rows.total} pageSize={rows.pageSize} query={{ q: search.q, read: search.read, type: search.type }} />
+      <Pagination
+        path="/notifications"
+        page={rows.page}
+        total={rows.total}
+        pageSize={rows.pageSize}
+        query={{ q: search.q, read: search.read, type: search.type }}
+      />
     </section>
   );
 }

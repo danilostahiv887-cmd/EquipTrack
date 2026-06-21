@@ -6,13 +6,17 @@ import { DatabaseWakeScreen } from "@/components/system/database-wake-screen";
 
 export const dynamic = "force-dynamic";
 
-export default async function WorkspaceLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function WorkspaceLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   if (!isConfigured) redirect("/setup");
   let user;
   try {
     user = await getCurrentUser();
   } catch {
-    return <DatabaseWakeScreen reason="Не вдалося прочитати сесію, бо SurrealDB тимчасово не відповідає." />;
+    return (
+      <DatabaseWakeScreen reason="Не вдалося прочитати сесію, бо SurrealDB тимчасово не відповідає." />
+    );
   }
   if (!user) redirect("/login");
   return <WorkspaceShell user={user}>{children}</WorkspaceShell>;

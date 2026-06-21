@@ -7,7 +7,8 @@ function unwrapSurrealId(value: unknown) {
 }
 
 export function normalizeRecordIdString(value: unknown) {
-  if (value instanceof RecordId) return `${value.table}:${unwrapSurrealId(value.id)}`;
+  if (value instanceof RecordId)
+    return `${value.table}:${unwrapSurrealId(value.id)}`;
   if (value && typeof value === "object" && "table" in value && "id" in value) {
     const record = value as { table: unknown; id: unknown };
     return `${record.table}:${unwrapSurrealId(record.id)}`;

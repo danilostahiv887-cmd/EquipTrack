@@ -1,10 +1,38 @@
 import { withDatabase } from "@/lib/db/client";
 import { batchRows, queryBatch, type Page } from "@/lib/db/repository";
-import { buildLookupSet, enrichWorkflowRowsWithLookup } from "@/server/services/display";
+import {
+  buildLookupSet,
+  enrichWorkflowRowsWithLookup,
+} from "@/server/services/display";
 
-export type WorkflowRecord = Record<string, unknown> & { id: unknown; createdAt?: string; status?: string; title?: string; reason?: string; name?: string; inventoryNumber?: string; equipmentId?: string };
-export type WorkflowFilters = { q?: string; status?: string; type?: string; severity?: string; read?: string; action?: string; entity?: string };
-const tables = { movements: "movement", requests: "transfer_request", repairs: "repair", audits: "audit", writeoffs: "writeoff_request", notifications: "notification", auditLog: "audit_log" } as const;
+export type WorkflowRecord = Record<string, unknown> & {
+  id: unknown;
+  createdAt?: string;
+  status?: string;
+  title?: string;
+  reason?: string;
+  name?: string;
+  inventoryNumber?: string;
+  equipmentId?: string;
+};
+export type WorkflowFilters = {
+  q?: string;
+  status?: string;
+  type?: string;
+  severity?: string;
+  read?: string;
+  action?: string;
+  entity?: string;
+};
+const tables = {
+  movements: "movement",
+  requests: "transfer_request",
+  repairs: "repair",
+  audits: "audit",
+  writeoffs: "writeoff_request",
+  notifications: "notification",
+  auditLog: "audit_log",
+} as const;
 const orderBy: Record<keyof typeof tables, string> = {
   movements: "movementDate",
   requests: "createdAt",
@@ -15,23 +43,31 @@ const orderBy: Record<keyof typeof tables, string> = {
   auditLog: "createdAt",
 };
 
-export async function getWorkflowPage(kind: keyof typeof tables, page: number, filters?: string | WorkflowFilters): Promise<Page<WorkflowRecord>> {
+export async function getWorkflowPage(
+  kind: keyof typeof tables,
+  page: number,
+  filters?: string | WorkflowFilters,
+): Promise<Page<WorkflowRecord>> {
   if (kind === "writeoffs") return getWriteoffPage(page, filters);
   return withDatabase(async (db) => {
     const pageSize = 12;
     const safePage = Math.max(1, page);
-    const options = typeof filters === "string" ? { q: filters } : filters ?? {};
+    const options =
+      typeof filters === "string" ? { q: filters } : (filters ?? {});
     const statusWhere = options.status ? "WHERE status = $status" : "";
-    const auditLookups = kind === "audits"
-      ? `
+    const auditLookups =
+      kind === "audits"
+        ? `
         SELECT id, title, roomId, status FROM audit;
         SELECT auditId, equipmentId, scannedCode, resultStatus, expectedRoomId, actualRoomId, expectedSerialNumber, expectedInventoryNumber, actualCondition, expectedCondition, note, checkedAt FROM audit_item;
       `
-      : `
+        : `
         SELECT id, title, roomId, status FROM audit WHERE id = NONE;
         SELECT auditId, equipmentId, scannedCode, resultStatus, expectedRoomId, actualRoomId, expectedSerialNumber, expectedInventoryNumber, actualCondition, expectedCondition, note, checkedAt FROM audit_item WHERE id = NONE;
       `;
-    const result = await queryBatch(db, `
+    const result = await queryBatch(
+      db,
+      `
       SELECT * FROM ${tables[kind]} ${statusWhere} ORDER BY ${orderBy[kind]} DESC;
       SELECT id, name, manufacturer, model FROM equipment;
       SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId FROM equipment_instance;
@@ -39,7 +75,9 @@ export async function getWorkflowPage(kind: keyof typeof tables, page: number, f
       SELECT id, name FROM building;
       SELECT id, fullName, position, role FROM user;
       ${auditLookups}
-    `, options.status ? { status: options.status } : {});
+    `,
+      options.status ? { status: options.status } : {},
+    );
     const rows = batchRows<WorkflowRecord>(result, 0);
     const lookup = buildLookupSet({
       equipmentModels: batchRows(result, 1),
@@ -57,7 +95,8 @@ export async function getWorkflowPage(kind: keyof typeof tables, page: number, f
       if (options.status && row.status !== options.status) return false;
       if (options.severity && row.severity !== options.severity) return false;
       if (options.type) {
-        const rowType = row.movementType ?? row.type ?? row.action ?? row.entityType;
+        const rowType =
+          row.movementType ?? row.type ?? row.action ?? row.entityType;
         if (rowType !== options.type) return false;
       }
       if (options.action && row.action !== options.action) return false;
@@ -75,18 +114,26 @@ export async function getWorkflowPage(kind: keyof typeof tables, page: number, f
   });
 }
 
-export async function getWriteoffPage(page: number, filters?: string | WorkflowFilters): Promise<Page<WorkflowRecord>> {
+export async function getWriteoffPage(
+  page: number,
+  filters?: string | WorkflowFilters,
+): Promise<Page<WorkflowRecord>> {
   return withDatabase(async (db) => {
     const pageSize = 12;
     const safePage = Math.max(1, page);
-    const options = typeof filters === "string" ? { q: filters } : filters ?? {};
+    const options =
+      typeof filters === "string" ? { q: filters } : (filters ?? {});
     const statusWhere = options.status ? "WHERE status = $status" : "";
-    const result = await queryBatch(db, `
+    const result = await queryBatch(
+      db,
+      `
       SELECT * FROM writeoff_request ${statusWhere} ORDER BY createdAt DESC;
       SELECT id, name, manufacturer, model FROM equipment;
       SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId FROM equipment_instance;
       SELECT id, fullName, position, role FROM user;
-    `, options.status ? { status: options.status } : {});
+    `,
+      options.status ? { status: options.status } : {},
+    );
     const rows = batchRows<WorkflowRecord>(result, 0);
     const lookup = buildLookupSet({
       equipmentModels: batchRows(result, 1),
@@ -95,7 +142,9 @@ export async function getWriteoffPage(page: number, filters?: string | WorkflowF
     });
     const enriched = enrichWorkflowRowsWithLookup(rows, lookup, "writeoffs");
     const needle = options.q?.trim().toLowerCase();
-    const filtered = enriched.filter((row) => !needle || String(row.__search ?? "").includes(needle));
+    const filtered = enriched.filter(
+      (row) => !needle || String(row.__search ?? "").includes(needle),
+    );
     return {
       items: filtered.slice((safePage - 1) * pageSize, safePage * pageSize),
       total: filtered.length,
@@ -107,7 +156,9 @@ export async function getWriteoffPage(page: number, filters?: string | WorkflowF
 
 export async function getDashboardMetrics() {
   return withDatabase(async (db) => {
-    const result = await queryBatch(db, `
+    const result = await queryBatch(
+      db,
+      `
       SELECT count() AS total FROM equipment_instance GROUP ALL;
       SELECT count() AS total FROM equipment_instance WHERE condition = 'needs_repair' OR condition = 'damaged' GROUP ALL;
       SELECT count() AS total FROM transfer_request WHERE status = 'submitted' GROUP ALL;
@@ -120,8 +171,10 @@ export async function getDashboardMetrics() {
       SELECT id, number, name, buildingId FROM room;
       SELECT id, name FROM building;
       SELECT id, fullName, position, role FROM user;
-    `);
-    const total = (index: number) => Number(batchRows<{ total: number }>(result, index)[0]?.total ?? 0);
+    `,
+    );
+    const total = (index: number) =>
+      Number(batchRows<{ total: number }>(result, index)[0]?.total ?? 0);
     const equipment = total(0);
     const repair = total(1);
     const requests = total(2);
@@ -143,20 +196,40 @@ export async function getDashboardMetrics() {
 
 export async function getAnalytics() {
   return withDatabase(async (db) => {
-    const result = await queryBatch(db, `
+    const result = await queryBatch(
+      db,
+      `
       SELECT condition, count() AS total FROM equipment_instance GROUP BY condition ORDER BY total DESC;
       SELECT categoryId, count() AS total FROM equipment GROUP BY categoryId ORDER BY total DESC;
       SELECT currentRoomId, count() AS total FROM equipment_instance GROUP BY currentRoomId ORDER BY total DESC;
       SELECT * FROM equipment_instance ORDER BY price DESC LIMIT 8;
       SELECT id, name FROM equipment;
-    `);
-    const condition = batchRows<{ condition: string; total: number }>(result, 0);
-    const categories = batchRows<{ categoryId: string; total: number }>(result, 1);
-    const buildings = batchRows<{ currentRoomId: string; total: number }>(result, 2);
+    `,
+    );
+    const condition = batchRows<{ condition: string; total: number }>(
+      result,
+      0,
+    );
+    const categories = batchRows<{ categoryId: string; total: number }>(
+      result,
+      1,
+    );
+    const buildings = batchRows<{ currentRoomId: string; total: number }>(
+      result,
+      2,
+    );
     const highValueRaw = batchRows<WorkflowRecord>(result, 3);
     const models = batchRows<{ id: unknown; name?: string }>(result, 4);
-    const modelNames = new Map(models.map((item) => [String(item.id).replace(/^([^:]+):⟨(.+)⟩$/, "$1:$2"), item.name ?? "Обладнання"]));
-    const highValue = highValueRaw.map((row) => ({ ...row, name: modelNames.get(String(row.equipmentId)) ?? "Обладнання" }));
+    const modelNames = new Map(
+      models.map((item) => [
+        String(item.id).replace(/^([^:]+):⟨(.+)⟩$/, "$1:$2"),
+        item.name ?? "Обладнання",
+      ]),
+    );
+    const highValue = highValueRaw.map((row) => ({
+      ...row,
+      name: modelNames.get(String(row.equipmentId)) ?? "Обладнання",
+    }));
     return { condition, categories, buildings, highValue };
   });
 }

@@ -56,12 +56,59 @@ const fieldLabels: Record<string, string> = {
   readAt: "Прочитано о",
 };
 
-const hiddenFields = new Set(["id", "passwordHash", "__display", "__title", "__subtitle", "__search"]);
+const hiddenFields = new Set([
+  "id",
+  "passwordHash",
+  "__display",
+  "__title",
+  "__subtitle",
+  "__search",
+]);
 const preferredOrder = [
-  "movementType", "title", "body", "type", "status", "equipmentId", "fromRoomId", "toRoomId", "roomId",
-  "quantity", "auditScope", "expectedItemCount", "expectedRegisteredCount", "actualItemCount", "itemCountDelta", "auditItemPreview", "auditResult", "auditProblems", "auditNote", "writeoffProgress", "reason", "issueDescription", "severity", "requestedBy", "reportedBy",
-  "performedBy", "acceptedBy", "createdBy", "checkedBy", "approvedBy", "rejectedBy", "handledBy", "completedBy", "actorId", "entityType",
-  "entityId", "movementDate", "plannedDate", "createdAt", "approvedAt", "rejectedAt", "updatedAt", "completedAt", "readAt",
+  "movementType",
+  "title",
+  "body",
+  "type",
+  "status",
+  "equipmentId",
+  "fromRoomId",
+  "toRoomId",
+  "roomId",
+  "quantity",
+  "auditScope",
+  "expectedItemCount",
+  "expectedRegisteredCount",
+  "actualItemCount",
+  "itemCountDelta",
+  "auditItemPreview",
+  "auditResult",
+  "auditProblems",
+  "auditNote",
+  "writeoffProgress",
+  "reason",
+  "issueDescription",
+  "severity",
+  "requestedBy",
+  "reportedBy",
+  "performedBy",
+  "acceptedBy",
+  "createdBy",
+  "checkedBy",
+  "approvedBy",
+  "rejectedBy",
+  "handledBy",
+  "completedBy",
+  "actorId",
+  "entityType",
+  "entityId",
+  "movementDate",
+  "plannedDate",
+  "createdAt",
+  "approvedAt",
+  "rejectedAt",
+  "updatedAt",
+  "completedAt",
+  "readAt",
 ];
 
 function displayValue(row: WorkflowRecord, key: string, value: unknown) {
@@ -69,24 +116,57 @@ function displayValue(row: WorkflowRecord, key: string, value: unknown) {
   if (display?.[key]) return display[key];
   if (typeof value === "boolean") return value ? "Так" : "Ні";
   if (value == null || value === "") return "—";
-  if (key.toLowerCase().includes("date") || ["createdAt", "updatedAt", "completedAt", "approvedAt", "rejectedAt", "readAt"].includes(key)) return formatDateTime(value);
-  if (key === "status" || key === "movementType" || key === "action" || key === "severity" || key === "type" || key === "entityType") return label(value, String(value));
-  if (String(value).includes(":") || (value && typeof value === "object" && "table" in value)) return recordId(value);
+  if (
+    key.toLowerCase().includes("date") ||
+    [
+      "createdAt",
+      "updatedAt",
+      "completedAt",
+      "approvedAt",
+      "rejectedAt",
+      "readAt",
+    ].includes(key)
+  )
+    return formatDateTime(value);
+  if (
+    key === "status" ||
+    key === "movementType" ||
+    key === "action" ||
+    key === "severity" ||
+    key === "type" ||
+    key === "entityType"
+  )
+    return label(value, String(value));
+  if (
+    String(value).includes(":") ||
+    (value && typeof value === "object" && "table" in value)
+  )
+    return recordId(value);
   return String(value);
 }
 
 function workflowTitle(row: WorkflowRecord, primary: string) {
   if (row.__title) return String(row.__title);
-  const primaryValue = row[primary] ?? row.title ?? row.reason ?? row.action ?? row.body ?? row.movementType ?? "Запис операції";
+  const primaryValue =
+    row[primary] ??
+    row.title ??
+    row.reason ??
+    row.action ??
+    row.body ??
+    row.movementType ??
+    "Запис операції";
   return label(primaryValue, "Запис операції");
 }
 
 function orderedEntries(row: WorkflowRecord) {
-  const keys = Object.keys(row).filter((key) => !hiddenFields.has(key) && !key.startsWith("__"));
+  const keys = Object.keys(row).filter(
+    (key) => !hiddenFields.has(key) && !key.startsWith("__"),
+  );
   return keys.sort((left, right) => {
     const leftIndex = preferredOrder.indexOf(left);
     const rightIndex = preferredOrder.indexOf(right);
-    if (leftIndex === -1 && rightIndex === -1) return left.localeCompare(right, "uk");
+    if (leftIndex === -1 && rightIndex === -1)
+      return left.localeCompare(right, "uk");
     if (leftIndex === -1) return 1;
     if (rightIndex === -1) return -1;
     return leftIndex - rightIndex;
@@ -106,7 +186,15 @@ function WorkflowDetails({ row }: { row: WorkflowRecord }) {
   );
 }
 
-export function WorkflowList({ rows, primary = "title", actions }: { rows: WorkflowRecord[]; primary?: string; actions?: (row: WorkflowRecord) => ReactNode }) {
+export function WorkflowList({
+  rows,
+  primary = "title",
+  actions,
+}: {
+  rows: WorkflowRecord[];
+  primary?: string;
+  actions?: (row: WorkflowRecord) => ReactNode;
+}) {
   return (
     <div className="workflow-list">
       {rows.map((row) => {
@@ -125,9 +213,13 @@ export function WorkflowList({ rows, primary = "title", actions }: { rows: Workf
               </Dialog>
               {row.__subtitle ? <small>{String(row.__subtitle)}</small> : null}
             </div>
-            <span className="workflow-row-date">{formatDateTime(row.movementDate ?? row.createdAt)}</span>
+            <span className="workflow-row-date">
+              {formatDateTime(row.movementDate ?? row.createdAt)}
+            </span>
             {row.status && <StatusBadge status={String(row.status)} />}
-            {actions && <div className="workflow-row-actions">{actions(row)}</div>}
+            {actions && (
+              <div className="workflow-row-actions">{actions(row)}</div>
+            )}
           </article>
         );
       })}

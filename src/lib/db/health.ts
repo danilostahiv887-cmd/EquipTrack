@@ -70,7 +70,8 @@ export async function checkDatabaseHealth(): Promise<DatabaseHealth> {
       status: "paused",
       checkedAt,
       wakeUrl: url,
-      message: "SurrealDB не відповідає. Якщо інстанс paused, натисніть Resume instance у Surreal Cloud.",
+      message:
+        "SurrealDB не відповідає. Якщо інстанс paused, натисніть Resume instance у Surreal Cloud.",
     };
   }
 }

@@ -4,17 +4,27 @@ import { getWorkflowPage } from "@/server/services/workflows";
 import { TransferRequestFormLoader } from "@/components/workflows/workflow-form-loader";
 import { WorkflowList } from "@/components/workflows/workflow-list";
 import { Pagination } from "@/components/ui/pagination";
-import { completeTransferRequestAction, decideTransferRequestAction } from "@/server/actions/workflows";
+import {
+  completeTransferRequestAction,
+  decideTransferRequestAction,
+} from "@/server/actions/workflows";
 import { Dialog } from "@/components/ui/dialog";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { label, recordId } from "@/lib/format";
 
 const statusOptions = ["submitted", "approved", "rejected", "completed"];
 
-export default async function RequestsPage({ searchParams }: { searchParams: Promise<{ page?: string; q?: string; status?: string }> }) {
+export default async function RequestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string; status?: string }>;
+}) {
   const search = await searchParams;
   const page = Math.max(1, Number(search.page ?? 1));
-  const [user, rows] = await Promise.all([getCurrentUser(), getWorkflowPage("requests", page, search)]);
+  const [user, rows] = await Promise.all([
+    getCurrentUser(),
+    getWorkflowPage("requests", page, search),
+  ]);
   const canManage = Boolean(user && can(user, "request:manage"));
   return (
     <section className="module-page">
@@ -22,46 +32,100 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
         <div>
           <p className="eyebrow">КОНТРОЛЬ ПЕРЕДАЧ</p>
           <h1>Заявки</h1>
-          <p>Запити на переміщення, повернення до складу й уточнення місця розташування.</p>
+          <p>
+            Запити на переміщення, повернення до складу й уточнення місця
+            розташування.
+          </p>
         </div>
-        <Dialog label="Нова заявка" title="Запит на переміщення"><TransferRequestFormLoader /></Dialog>
+        <Dialog label="Нова заявка" title="Запит на переміщення">
+          <TransferRequestFormLoader />
+        </Dialog>
       </header>
       <form className="filter-line">
-        <input name="q" defaultValue={search.q} placeholder="Обладнання, приміщення, заявник, стан або причина" />
-        <select name="status" defaultValue={search.status ?? ""} aria-label="Фільтр за станом заявки">
+        <input
+          name="q"
+          defaultValue={search.q}
+          placeholder="Обладнання, приміщення, заявник, стан або причина"
+        />
+        <select
+          name="status"
+          defaultValue={search.status ?? ""}
+          aria-label="Фільтр за станом заявки"
+        >
           <option value="">Усі стани</option>
-          {statusOptions.map((status) => <option key={status} value={status}>{label(status)}</option>)}
+          {statusOptions.map((status) => (
+            <option key={status} value={status}>
+              {label(status)}
+            </option>
+          ))}
         </select>
         <button type="submit">Шукати</button>
       </form>
       <WorkflowList
         rows={rows.items}
         primary="reason"
-        actions={(row) => canManage && (row.status === "submitted" || row.status === "approved") ? (
-          <>
-            {row.status === "submitted" ? (
-              <>
-                <form action={decideTransferRequestAction}>
-                  <input type="hidden" name="requestId" value={recordId(row.id)} />
-                  <input type="hidden" name="decision" value="approved" />
-                  <ConfirmSubmit label="Погодити" title="Погодити заявку?" description="Після погодження менеджер зможе завершити фактичну передачу обладнання." confirmLabel="Погодити заявку" />
+        actions={(row) =>
+          canManage &&
+          (row.status === "submitted" || row.status === "approved") ? (
+            <>
+              {row.status === "submitted" ? (
+                <>
+                  <form action={decideTransferRequestAction}>
+                    <input
+                      type="hidden"
+                      name="requestId"
+                      value={recordId(row.id)}
+                    />
+                    <input type="hidden" name="decision" value="approved" />
+                    <ConfirmSubmit
+                      label="Погодити"
+                      title="Погодити заявку?"
+                      description="Після погодження менеджер зможе завершити фактичну передачу обладнання."
+                      confirmLabel="Погодити заявку"
+                    />
+                  </form>
+                  <form action={decideTransferRequestAction}>
+                    <input
+                      type="hidden"
+                      name="requestId"
+                      value={recordId(row.id)}
+                    />
+                    <input type="hidden" name="decision" value="rejected" />
+                    <ConfirmSubmit
+                      label="Відхилити"
+                      title="Відхилити заявку?"
+                      description="Заявку буде закрито без переміщення обладнання."
+                      confirmLabel="Так, відхилити"
+                      tone="danger"
+                    />
+                  </form>
+                </>
+              ) : (
+                <form action={completeTransferRequestAction}>
+                  <input
+                    type="hidden"
+                    name="requestId"
+                    value={recordId(row.id)}
+                  />
+                  <ConfirmSubmit
+                    label="Завершити передачу"
+                    title="Завершити передачу?"
+                    description="Місце розташування обладнання буде оновлено, а рух потрапить у журнал відповідальності."
+                    confirmLabel="Завершити"
+                  />
                 </form>
-                <form action={decideTransferRequestAction}>
-                  <input type="hidden" name="requestId" value={recordId(row.id)} />
-                  <input type="hidden" name="decision" value="rejected" />
-                  <ConfirmSubmit label="Відхилити" title="Відхилити заявку?" description="Заявку буде закрито без переміщення обладнання." confirmLabel="Так, відхилити" tone="danger" />
-                </form>
-              </>
-            ) : (
-              <form action={completeTransferRequestAction}>
-                <input type="hidden" name="requestId" value={recordId(row.id)} />
-                <ConfirmSubmit label="Завершити передачу" title="Завершити передачу?" description="Місце розташування обладнання буде оновлено, а рух потрапить у журнал відповідальності." confirmLabel="Завершити" />
-              </form>
-            )}
-          </>
-        ) : null}
+              )}
+            </>
+          ) : null
+        }
       />
-      <Pagination path="/requests" page={rows.page} total={rows.total} pageSize={rows.pageSize} query={{ q: search.q, status: search.status }} />
+      <Pagination
+        path="/requests"
+        page={rows.page}
+        total={rows.total}
+        pageSize={rows.pageSize}
+        query={{ q: search.q, status: search.status }}
+      />
     </section>
   );
 }

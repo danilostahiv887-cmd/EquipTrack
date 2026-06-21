@@ -1,12 +1,29 @@
 const tables = [
-  "user", "session", "building", "room_type", "room", "category", "supplier",
-  "equipment", "equipment_instance", "file", "movement", "transfer_request", "repair", "audit",
-  "audit_item", "writeoff_request", "notification", "audit_log",
+  "user",
+  "session",
+  "building",
+  "room_type",
+  "room",
+  "category",
+  "supplier",
+  "equipment",
+  "equipment_instance",
+  "file",
+  "movement",
+  "transfer_request",
+  "repair",
+  "audit",
+  "audit_item",
+  "writeoff_request",
+  "notification",
+  "audit_log",
   "app_meta",
 ];
 
 export const schemaStatements = [
-  ...tables.map((table) => `DEFINE TABLE OVERWRITE ${table} SCHEMALESS PERMISSIONS NONE;`),
+  ...tables.map(
+    (table) => `DEFINE TABLE OVERWRITE ${table} SCHEMALESS PERMISSIONS NONE;`,
+  ),
   "DEFINE FIELD OVERWRITE data ON TABLE file TYPE bytes;",
   "DEFINE FIELD OVERWRITE previewData ON TABLE file TYPE option<bytes>;",
   "DEFINE INDEX OVERWRITE user_email ON TABLE user FIELDS email UNIQUE;",

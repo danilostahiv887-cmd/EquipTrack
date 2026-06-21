@@ -6,9 +6,108 @@ import { EquipmentTable } from "@/components/inventory/equipment-table";
 import { Dialog } from "@/components/ui/dialog";
 import { getEquipment, getReferences } from "@/server/services/catalog";
 
-export default async function EquipmentPage({ searchParams }: { searchParams: Promise<{ page?: string; q?: string; status?: string; condition?: string; categoryId?: string; roomId?: string }> }) {
-  const search = await searchParams; const page = Math.max(1, Number(search.page ?? 1));
-  const [user, result, references] = await Promise.all([getCurrentUser(), getEquipment(page, search), getReferences()]);
+export default async function EquipmentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    page?: string;
+    q?: string;
+    status?: string;
+    condition?: string;
+    categoryId?: string;
+    roomId?: string;
+  }>;
+}) {
+  const search = await searchParams;
+  const page = Math.max(1, Number(search.page ?? 1));
+  const [user, result, references] = await Promise.all([
+    getCurrentUser(),
+    getEquipment(page, search),
+    getReferences(),
+  ]);
   const canManage = Boolean(user && can(user, "equipment:manage"));
-  return <section className="module-page"><header className="module-heading"><div><p className="eyebrow">ОСНОВНИЙ РЕЄСТР</p><h1>Обладнання</h1><p>Каталог моделей із кількістю екземплярів. Пошук працює за назвою, аудиторією, серійним або інвентарним номером.</p></div>{canManage && <Dialog label="Створити картку" title="Нова картка обладнання"><EquipmentForm categories={references.categories}/></Dialog>}</header><form className="filter-line"><input name="q" defaultValue={search.q} placeholder="Назва, аудиторія, інвентарний або серійний номер"/><select name="categoryId" defaultValue={search.categoryId ?? ""}><option value="">Усі категорії</option>{references.categories.map((item) => <option key={String(item.id)} value={String(item.id).replace(/^([^:]+):⟨(.+)⟩$/, "$1:$2")}>{item.name}</option>)}</select><select name="roomId" defaultValue={search.roomId ?? ""}><option value="">Усі приміщення</option>{references.rooms.map((room) => <option key={String(room.id)} value={String(room.id).replace(/^([^:]+):⟨(.+)⟩$/, "$1:$2")}>{room.number} {room.name}</option>)}</select><select name="condition" defaultValue={search.condition ?? ""}><option value="">Будь-який технічний стан</option><option value="new">Нове</option><option value="good">Справне</option><option value="satisfactory">Задовільне</option><option value="needs_repair">Потребує ремонту</option><option value="damaged">Пошкоджене</option><option value="unusable">Непридатне</option></select><select name="status" defaultValue={search.status ?? ""}><option value="">Будь-який обліковий стан</option><option value="active">Активне</option><option value="in_repair">У ремонті</option><option value="in_storage">На складі</option><option value="lost">Втрачено</option><option value="written_off">Списано</option></select><button type="submit">Шукати</button></form><EquipmentTable equipment={result.items} references={{ categories: references.categories }} canManage={canManage}/><Pagination path="/equipment" page={result.page} total={result.total} pageSize={result.pageSize} query={{ q: search.q, status: search.status, condition: search.condition, categoryId: search.categoryId, roomId: search.roomId }}/></section>;
+  return (
+    <section className="module-page">
+      <header className="module-heading">
+        <div>
+          <p className="eyebrow">ОСНОВНИЙ РЕЄСТР</p>
+          <h1>Обладнання</h1>
+          <p>
+            Каталог моделей із кількістю екземплярів. Пошук працює за назвою,
+            аудиторією, серійним або інвентарним номером.
+          </p>
+        </div>
+        {canManage && (
+          <Dialog label="Створити картку" title="Нова картка обладнання">
+            <EquipmentForm categories={references.categories} />
+          </Dialog>
+        )}
+      </header>
+      <form className="filter-line">
+        <input
+          name="q"
+          defaultValue={search.q}
+          placeholder="Назва, аудиторія, інвентарний або серійний номер"
+        />
+        <select name="categoryId" defaultValue={search.categoryId ?? ""}>
+          <option value="">Усі категорії</option>
+          {references.categories.map((item) => (
+            <option
+              key={String(item.id)}
+              value={String(item.id).replace(/^([^:]+):⟨(.+)⟩$/, "$1:$2")}
+            >
+              {item.name}
+            </option>
+          ))}
+        </select>
+        <select name="roomId" defaultValue={search.roomId ?? ""}>
+          <option value="">Усі приміщення</option>
+          {references.rooms.map((room) => (
+            <option
+              key={String(room.id)}
+              value={String(room.id).replace(/^([^:]+):⟨(.+)⟩$/, "$1:$2")}
+            >
+              {room.number} {room.name}
+            </option>
+          ))}
+        </select>
+        <select name="condition" defaultValue={search.condition ?? ""}>
+          <option value="">Будь-який технічний стан</option>
+          <option value="new">Нове</option>
+          <option value="good">Справне</option>
+          <option value="satisfactory">Задовільне</option>
+          <option value="needs_repair">Потребує ремонту</option>
+          <option value="damaged">Пошкоджене</option>
+          <option value="unusable">Непридатне</option>
+        </select>
+        <select name="status" defaultValue={search.status ?? ""}>
+          <option value="">Будь-який обліковий стан</option>
+          <option value="active">Активне</option>
+          <option value="in_repair">У ремонті</option>
+          <option value="in_storage">На складі</option>
+          <option value="lost">Втрачено</option>
+          <option value="written_off">Списано</option>
+        </select>
+        <button type="submit">Шукати</button>
+      </form>
+      <EquipmentTable
+        equipment={result.items}
+        references={{ categories: references.categories }}
+        canManage={canManage}
+      />
+      <Pagination
+        path="/equipment"
+        page={result.page}
+        total={result.total}
+        pageSize={result.pageSize}
+        query={{
+          q: search.q,
+          status: search.status,
+          condition: search.condition,
+          categoryId: search.categoryId,
+          roomId: search.roomId,
+        }}
+      />
+    </section>
+  );
 }

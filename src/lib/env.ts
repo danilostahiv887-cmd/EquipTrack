@@ -9,7 +9,9 @@ const requiredKeys = [
   "AUTH_SECRET",
 ] as const;
 
-export const isConfigured = requiredKeys.every((key) => Boolean(process.env[key]?.trim()));
+export const isConfigured = requiredKeys.every((key) =>
+  Boolean(process.env[key]?.trim()),
+);
 
 export const env = {
   appUrl: process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000",

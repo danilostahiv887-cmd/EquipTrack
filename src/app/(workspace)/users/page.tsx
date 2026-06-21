@@ -11,7 +11,16 @@ import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 const roleOptions = ["admin", "inventory_manager", "staff"];
 const statusOptions = ["active", "inactive"];
 
-export default async function UsersPage({ searchParams }: { searchParams: Promise<{ page?: string; q?: string; role?: string; status?: string }> }) {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    page?: string;
+    q?: string;
+    role?: string;
+    status?: string;
+  }>;
+}) {
   await requirePermission("user:manage");
   const search = await searchParams;
   const page = Math.max(1, Number(search.page ?? 1));
@@ -23,20 +32,45 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
         <div>
           <p className="eyebrow">ДОСТУП ДО СИСТЕМИ</p>
           <h1>Користувачі</h1>
-          <p>Створення працівників і менеджерів, ролі та контроль активних облікових записів.</p>
+          <p>
+            Створення працівників і менеджерів, ролі та контроль активних
+            облікових записів.
+          </p>
         </div>
-        <Dialog label="Створити користувача" title="Новий обліковий запис"><UserForm /></Dialog>
+        <Dialog label="Створити користувача" title="Новий обліковий запис">
+          <UserForm />
+        </Dialog>
       </header>
 
       <form className="filter-line">
-        <input name="q" defaultValue={search.q} placeholder="ПІБ, email, посада або роль" />
-        <select name="role" defaultValue={search.role ?? ""} aria-label="Фільтр за роллю">
+        <input
+          name="q"
+          defaultValue={search.q}
+          placeholder="ПІБ, email, посада або роль"
+        />
+        <select
+          name="role"
+          defaultValue={search.role ?? ""}
+          aria-label="Фільтр за роллю"
+        >
           <option value="">Усі ролі</option>
-          {roleOptions.map((role) => <option key={role} value={role}>{label(role)}</option>)}
+          {roleOptions.map((role) => (
+            <option key={role} value={role}>
+              {label(role)}
+            </option>
+          ))}
         </select>
-        <select name="status" defaultValue={search.status ?? ""} aria-label="Фільтр за станом користувача">
+        <select
+          name="status"
+          defaultValue={search.status ?? ""}
+          aria-label="Фільтр за станом користувача"
+        >
           <option value="">Усі стани</option>
-          {statusOptions.map((status) => <option key={status} value={status}>{label(status)}</option>)}
+          {statusOptions.map((status) => (
+            <option key={status} value={status}>
+              {label(status)}
+            </option>
+          ))}
         </select>
         <button type="submit">Шукати</button>
       </form>
@@ -46,11 +80,19 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           <article key={recordId(item.id)}>
             <div className="workflow-row-main">
               <strong>{String(item.fullName)}</strong>
-              <small>{String(item.email)} · {label(item.role)} · {String(item.position ?? "Посаду не вказано")}</small>
+              <small>
+                {String(item.email)} · {label(item.role)} ·{" "}
+                {String(item.position ?? "Посаду не вказано")}
+              </small>
             </div>
             <StatusBadge status={String(item.status)} />
             <div className="workflow-row-actions">
-              <Dialog label="Редагувати" title="Редагування користувача" icon={false} triggerClassName="inline-dialog-trigger">
+              <Dialog
+                label="Редагувати"
+                title="Редагування користувача"
+                icon={false}
+                triggerClassName="inline-dialog-trigger"
+              >
                 <UserForm
                   mode="edit"
                   user={{
@@ -65,7 +107,11 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
               </Dialog>
               {item.status === "active" && (
                 <form action={deactivateUserAction}>
-                  <input name="userId" type="hidden" value={recordId(item.id)} />
+                  <input
+                    name="userId"
+                    type="hidden"
+                    value={recordId(item.id)}
+                  />
                   <ConfirmSubmit
                     label="Деактивувати"
                     title="Деактивувати користувача?"
@@ -78,10 +124,18 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
             </div>
           </article>
         ))}
-        {data.items.length === 0 && <p>Користувачів за такими умовами не знайдено.</p>}
+        {data.items.length === 0 && (
+          <p>Користувачів за такими умовами не знайдено.</p>
+        )}
       </div>
 
-      <Pagination path="/users" page={data.page} total={data.total} pageSize={data.pageSize} query={{ q: search.q, role: search.role, status: search.status }} />
+      <Pagination
+        path="/users"
+        page={data.page}
+        total={data.total}
+        pageSize={data.pageSize}
+        query={{ q: search.q, role: search.role, status: search.status }}
+      />
     </section>
   );
 }

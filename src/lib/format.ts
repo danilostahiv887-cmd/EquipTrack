@@ -1,6 +1,13 @@
-export const money = new Intl.NumberFormat("uk-UA", { style: "currency", currency: "UAH", maximumFractionDigits: 0 });
+export const money = new Intl.NumberFormat("uk-UA", {
+  style: "currency",
+  currency: "UAH",
+  maximumFractionDigits: 0,
+});
 export const date = new Intl.DateTimeFormat("uk-UA", { dateStyle: "medium" });
-export const dateTime = new Intl.DateTimeFormat("uk-UA", { dateStyle: "medium", timeStyle: "short" });
+export const dateTime = new Intl.DateTimeFormat("uk-UA", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 export const recordId = (value: unknown) => {
   if (value && typeof value === "object" && "table" in value && "id" in value) {
     const record = value as { table: unknown; id: unknown };

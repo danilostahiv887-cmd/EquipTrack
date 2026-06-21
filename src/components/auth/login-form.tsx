@@ -1,7 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
-import { FieldError, FormFeedback, fieldClass, invalid, labelClass } from "@/components/ui/form-errors";
+import {
+  FieldError,
+  FormFeedback,
+  fieldClass,
+  invalid,
+  labelClass,
+} from "@/components/ui/form-errors";
 import { loginAction, type LoginState } from "@/server/actions/auth";
 
 const initialState: LoginState = {};
@@ -13,7 +19,9 @@ export function LoginForm() {
   return (
     <form action={action} noValidate className="login-form">
       <div className="form-field">
-        <label htmlFor="email" className={labelClass(fieldErrors, "email")}>Електронна адреса</label>
+        <label htmlFor="email" className={labelClass(fieldErrors, "email")}>
+          Електронна адреса
+        </label>
         <input
           id="email"
           name="email"
@@ -26,7 +34,12 @@ export function LoginForm() {
       </div>
 
       <div className="form-field">
-        <label htmlFor="password" className={labelClass(fieldErrors, "password")}>Пароль</label>
+        <label
+          htmlFor="password"
+          className={labelClass(fieldErrors, "password")}
+        >
+          Пароль
+        </label>
         <input
           id="password"
           name="password"
@@ -39,7 +52,9 @@ export function LoginForm() {
       </div>
 
       <FormFeedback formError={state.formError} fieldErrors={fieldErrors} />
-      <button className="primary-button" type="submit" disabled={pending}>{pending ? "Виконуємо вхід…" : "Увійти до системи"}</button>
+      <button className="primary-button" type="submit" disabled={pending}>
+        {pending ? "Виконуємо вхід…" : "Увійти до системи"}
+      </button>
     </form>
   );
 }
