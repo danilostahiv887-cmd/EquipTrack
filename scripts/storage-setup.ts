@@ -1,5 +1,4 @@
-import "dotenv/config";
-import { withDatabase } from "../src/lib/db/client";
+import { closeDatabaseConnection, withDatabase } from "../src/lib/db/client";
 
 withDatabase(async (db) => {
   await db.query("DEFINE TABLE OVERWRITE file SCHEMALESS PERMISSIONS NONE;");
@@ -9,4 +8,4 @@ withDatabase(async (db) => {
 }).catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : "Не вдалося налаштувати сховище файлів.");
   process.exitCode = 1;
-});
+}).finally(closeDatabaseConnection);

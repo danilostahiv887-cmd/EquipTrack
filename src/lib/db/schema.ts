@@ -1,7 +1,8 @@
 const tables = [
   "user", "session", "building", "room_type", "room", "category", "supplier",
-  "equipment", "file", "movement", "transfer_request", "repair", "audit",
+  "equipment", "equipment_instance", "file", "movement", "transfer_request", "repair", "audit",
   "audit_item", "writeoff_request", "notification", "audit_log",
+  "app_meta",
 ];
 
 export const schemaStatements = [
@@ -9,11 +10,16 @@ export const schemaStatements = [
   "DEFINE FIELD OVERWRITE data ON TABLE file TYPE bytes;",
   "DEFINE FIELD OVERWRITE previewData ON TABLE file TYPE option<bytes>;",
   "DEFINE INDEX OVERWRITE user_email ON TABLE user FIELDS email UNIQUE;",
-  "DEFINE INDEX OVERWRITE equipment_inventory_number ON TABLE equipment FIELDS inventoryNumber UNIQUE;",
-  "DEFINE INDEX OVERWRITE equipment_room ON TABLE equipment FIELDS currentRoomId;",
   "DEFINE INDEX OVERWRITE equipment_category ON TABLE equipment FIELDS categoryId;",
   "DEFINE INDEX OVERWRITE equipment_status ON TABLE equipment FIELDS status;",
   "DEFINE INDEX OVERWRITE equipment_condition ON TABLE equipment FIELDS condition;",
+  "DEFINE INDEX OVERWRITE equipment_instance_equipment ON TABLE equipment_instance FIELDS equipmentId;",
+  "DEFINE INDEX OVERWRITE equipment_instance_inventory_number ON TABLE equipment_instance FIELDS inventoryNumber UNIQUE;",
+  "DEFINE INDEX OVERWRITE equipment_instance_serial_number ON TABLE equipment_instance FIELDS serialNumber UNIQUE;",
+  "DEFINE INDEX OVERWRITE equipment_instance_room ON TABLE equipment_instance FIELDS currentRoomId;",
+  "DEFINE INDEX OVERWRITE equipment_instance_responsible ON TABLE equipment_instance FIELDS currentResponsibleId;",
+  "DEFINE INDEX OVERWRITE equipment_instance_status ON TABLE equipment_instance FIELDS status;",
+  "DEFINE INDEX OVERWRITE equipment_instance_condition ON TABLE equipment_instance FIELDS condition;",
   "DEFINE INDEX OVERWRITE movement_equipment ON TABLE movement FIELDS equipmentId;",
   "DEFINE INDEX OVERWRITE movement_date ON TABLE movement FIELDS movementDate;",
   "DEFINE INDEX OVERWRITE room_building ON TABLE room FIELDS buildingId;",

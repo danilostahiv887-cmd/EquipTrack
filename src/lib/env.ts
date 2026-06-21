@@ -1,3 +1,5 @@
+import "@/lib/env/load";
+
 const requiredKeys = [
   "SURREAL_URL",
   "SURREAL_NAMESPACE",

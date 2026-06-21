@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <defs>
+    <linearGradient id="a" x1="13" y1="9" x2="84" y2="88" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd66f"/>
+      <stop offset=".45" stop-color="#43a8a5"/>
+      <stop offset="1" stop-color="#a75239"/>
+    </linearGradient>
+    <linearGradient id="b" x1="28" y1="23" x2="76" y2="76" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff4c7"/>
+      <stop offset="1" stop-color="#b8d1a6"/>
+    </linearGradient>
+  </defs>
+  <rect width="96" height="96" rx="22" fill="#15343d"/>
+  <path d="M10 28C14 14 30 7 45 10c13 2 27 0 36 12 10 12 8 31 1 45-8 15-24 24-42 21C21 85 8 72 6 54 5 45 7 36 10 28Z" fill="url(#a)"/>
+  <path d="M23 25c8-8 22-9 36-6 14 3 24 14 24 29 0 21-16 36-36 36S14 70 14 51c0-10 3-19 9-26Z" fill="#102932"/>
+  <path d="M30 24h35l11 11v38H30z" fill="url(#b)"/>
+  <path d="M65 24v11h11" fill="#ffcb5f"/>
+  <path d="M36 37h23M36 47h32M36 58h21" stroke="#1c5660" stroke-width="3" stroke-linecap="round"/>
+  <path d="M24 36h9M24 48h9M24 60h9" stroke="#ff7046" stroke-width="4" stroke-linecap="round"/>
+  <text x="49" y="68" fill="#f9f2d0" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="900" text-anchor="middle" letter-spacing="-2">ET</text>
+</svg>

@@ -1,1 +1,3 @@
-export function ConditionChart({ rows }: { rows: Array<{ label: string; value: number }> }) { const max = Math.max(1, ...rows.map((row) => row.value)); return <div className="condition-chart">{rows.map((row) => <div key={row.label}><span>{row.label}</span><i><b style={{ width: `${(row.value / max) * 100}%` }}/></i><strong>{row.value}</strong></div>)}</div>; }
+import { label } from "@/lib/format";
+
+export function ConditionChart({ rows }: { rows: Array<{ label: string; value: number }> }) { const max = Math.max(1, ...rows.map((row) => row.value)); return <div className="condition-chart">{rows.map((row) => <div key={row.label}><span>{label(row.label)}</span><i><b style={{ width: `${(row.value / max) * 100}%` }}/></i><strong>{row.value}</strong></div>)}</div>; }

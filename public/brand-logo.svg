@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">EquipTrack</title>
+  <desc id="desc">Кольоровий знак системи обліку обладнання: технічна картка, інвентарна сітка і монограма ET.</desc>
+  <defs>
+    <linearGradient id="shell" x1="16" y1="12" x2="84" y2="86" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd66f"/>
+      <stop offset=".42" stop-color="#43a8a5"/>
+      <stop offset="1" stop-color="#a75239"/>
+    </linearGradient>
+    <linearGradient id="ink" x1="24" y1="20" x2="75" y2="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#15343d"/>
+      <stop offset="1" stop-color="#071b22"/>
+    </linearGradient>
+    <linearGradient id="card" x1="26" y1="24" x2="70" y2="72" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff4c7"/>
+      <stop offset="1" stop-color="#b8d1a6"/>
+    </linearGradient>
+    <filter id="lift" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#10252b" flood-opacity=".32"/>
+    </filter>
+  </defs>
+  <rect width="96" height="96" rx="24" fill="#18313a"/>
+  <path d="M10 28C13 15 28 7 43 9c14 2 29 0 38 12 10 12 9 32 1 46-8 15-24 24-42 21C21 85 8 72 6 54 5 45 7 36 10 28Z" fill="url(#shell)"/>
+  <path d="M20 25c9-11 22-10 38-8 13 1 24 14 25 28 2 22-15 39-35 39-21 0-36-15-36-34 0-9 3-18 8-25Z" fill="url(#ink)" filter="url(#lift)"/>
+  <path d="M28 23h37l12 12v38H28z" fill="url(#card)"/>
+  <path d="M65 23v12h12" fill="#ffcb5f"/>
+  <path d="M34 35h25M34 45h34M34 55h20M34 65h29" stroke="#1c5660" stroke-width="3" stroke-linecap="round"/>
+  <path d="M23 34h10M23 46h10M23 58h10M23 70h10" stroke="#ff7046" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="69" cy="61" r="10" fill="#15343d"/>
+  <path d="M64 61h10M69 56v10" stroke="#ffd66f" stroke-width="3" stroke-linecap="round"/>
+  <path d="M33 77c8 6 22 8 33 2" stroke="#ff7046" stroke-width="4" stroke-linecap="round"/>
+  <text x="48" y="57" fill="#f9f2d0" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="900" text-anchor="middle" letter-spacing="-2">ET</text>
+</svg>

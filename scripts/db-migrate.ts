@@ -1,5 +1,4 @@
-import "dotenv/config";
-import { withDatabase } from "../src/lib/db/client";
+import { closeDatabaseConnection, withDatabase } from "../src/lib/db/client";
 import { schemaStatements } from "../src/lib/db/schema";
 
 withDatabase(async (db) => {
@@ -8,4 +7,4 @@ withDatabase(async (db) => {
 }).catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : "Не вдалося застосувати схему.");
   process.exitCode = 1;
-});
+}).finally(closeDatabaseConnection);

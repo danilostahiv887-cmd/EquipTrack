@@ -1,5 +1,4 @@
-import "dotenv/config";
-import { withDatabase } from "../src/lib/db/client";
+import { closeDatabaseConnection, withDatabase } from "../src/lib/db/client";
 import { seedDatabase } from "../src/lib/db/seed";
 
 withDatabase(async (db) => {
@@ -8,4 +7,4 @@ withDatabase(async (db) => {
 }).catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : "Не вдалося створити початкові дані.");
   process.exitCode = 1;
-});
+}).finally(closeDatabaseConnection);

@@ -7,7 +7,7 @@ export async function queryRows<T>(db: Surreal, query: string, variables: Record
   return (result[0] ?? []) as T[];
 }
 
-export async function queryPage<T>(db: Surreal, table: string, page = 1, pageSize = 20): Promise<Page<T>> {
+export async function queryPage<T>(db: Surreal, table: string, page = 1, pageSize = 12): Promise<Page<T>> {
   const safePage = Math.max(1, page);
   const offset = (safePage - 1) * pageSize;
   const items = await queryRows<T>(db, `SELECT * FROM ${table} LIMIT $limit START $offset`, { limit: pageSize, offset });
