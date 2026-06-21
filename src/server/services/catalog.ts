@@ -1,6 +1,6 @@
 import { withDatabase } from "@/lib/db/client";
 import { normalizeRecordIdString, toRecordId } from "@/lib/db/record-id";
-import { queryRows, type Page } from "@/lib/db/repository";
+import { batchRows, queryBatch, queryRows, type Page } from "@/lib/db/repository";
 import { recordId } from "@/lib/format";
 import { enrichWorkflowRows } from "@/server/services/display";
 
@@ -130,12 +130,16 @@ export async function getEquipment(page: number, filters?: string | EquipmentFil
     const pageSize = 12;
     const safePage = Math.max(1, page);
     const options = typeof filters === "string" ? { q: filters } : filters ?? {};
-    const [models, rawInstances, rooms, users] = await Promise.all([
-      queryRows<EquipmentModel>(db, "SELECT * FROM equipment ORDER BY name;"),
-      queryRows<EquipmentInstance>(db, "SELECT * FROM equipment_instance ORDER BY inventoryNumber;"),
-      queryRows<Pick<Room, "id" | "number" | "name">>(db, "SELECT id, number, name FROM room ORDER BY number;"),
-      queryRows<Reference>(db, "SELECT id, fullName FROM user ORDER BY fullName;"),
-    ]);
+    const result = await queryBatch(db, `
+      SELECT * FROM equipment ORDER BY name;
+      SELECT * FROM equipment_instance ORDER BY inventoryNumber;
+      SELECT id, number, name FROM room ORDER BY number;
+      SELECT id, fullName FROM user ORDER BY fullName;
+    `);
+    const models = batchRows<EquipmentModel>(result, 0);
+    const rawInstances = batchRows<EquipmentInstance>(result, 1);
+    const rooms = batchRows<Pick<Room, "id" | "number" | "name">>(result, 2);
+    const users = batchRows<Reference>(result, 3);
     const instances = withInstanceLabels(rawInstances, models, rooms, users);
     const rows = aggregateEquipment(models, instances);
     const needle = options.q?.trim().toLowerCase();
@@ -154,25 +158,34 @@ export async function getEquipment(page: number, filters?: string | EquipmentFil
 
 export async function getReferences() {
   return withDatabase(async (db) => {
-    const [buildings, types, categories, users, rooms] = await Promise.all([
-      queryRows<Reference>(db, "SELECT id, name FROM building ORDER BY name;"),
-      queryRows<Reference>(db, "SELECT id, name FROM room_type ORDER BY name;"),
-      queryRows<Reference>(db, "SELECT id, name FROM category ORDER BY name;"),
-      queryRows<Reference>(db, "SELECT id, fullName FROM user WHERE status = 'active' ORDER BY fullName;"),
-      queryRows<Reference>(db, "SELECT id, number, name FROM room WHERE status = 'active' ORDER BY number;"),
-    ]);
+    const result = await queryBatch(db, `
+      SELECT id, name FROM building ORDER BY name;
+      SELECT id, name FROM room_type ORDER BY name;
+      SELECT id, name FROM category ORDER BY name;
+      SELECT id, fullName FROM user WHERE status = 'active' ORDER BY fullName;
+      SELECT id, number, name FROM room WHERE status = 'active' ORDER BY number;
+    `);
+    const buildings = batchRows<Reference>(result, 0);
+    const types = batchRows<Reference>(result, 1);
+    const categories = batchRows<Reference>(result, 2);
+    const users = batchRows<Reference>(result, 3);
+    const rooms = batchRows<Reference>(result, 4);
     return { buildings, types, categories, users, rooms };
   });
 }
 
 export async function getMovementReferences(): Promise<MovementReferences> {
   return withDatabase(async (db) => {
-    const [models, rawInstances, rooms, users] = await Promise.all([
-      queryRows<EquipmentModel>(db, "SELECT * FROM equipment ORDER BY name;"),
-      queryRows<EquipmentInstance>(db, "SELECT * FROM equipment_instance WHERE status != 'written_off' ORDER BY inventoryNumber;"),
-      queryRows<MovementReferences["rooms"][number]>(db, "SELECT id, number, name FROM room WHERE status = 'active' ORDER BY number;"),
-      queryRows<Reference>(db, "SELECT id, fullName FROM user WHERE status = 'active' ORDER BY fullName;"),
-    ]);
+    const result = await queryBatch(db, `
+      SELECT * FROM equipment ORDER BY name;
+      SELECT * FROM equipment_instance WHERE status != 'written_off' ORDER BY inventoryNumber;
+      SELECT id, number, name FROM room WHERE status = 'active' ORDER BY number;
+      SELECT id, fullName FROM user WHERE status = 'active' ORDER BY fullName;
+    `);
+    const models = batchRows<EquipmentModel>(result, 0);
+    const rawInstances = batchRows<EquipmentInstance>(result, 1);
+    const rooms = batchRows<MovementReferences["rooms"][number]>(result, 2);
+    const users = batchRows<Reference>(result, 3);
     const equipment = withInstanceLabels(rawInstances, models, rooms, users).sort((left, right) => compact([left.equipmentName, left.inventoryNumber]).localeCompare(compact([right.equipmentName, right.inventoryNumber]), "uk"));
     return { equipment, rooms };
   });
@@ -184,14 +197,20 @@ export async function getRoomPassport(id: string) {
     const textId = normalizeRecordIdString(id);
     const [room] = await queryRows<Room>(db, "SELECT * FROM room WHERE id = $id LIMIT 1;", { id: record });
     if (!room) return null;
-    const [models, rawInstances, users, movementRows, audits, files] = await Promise.all([
-      queryRows<EquipmentModel>(db, "SELECT * FROM equipment ORDER BY name;"),
-      queryRows<EquipmentInstance>(db, "SELECT * FROM equipment_instance WHERE currentRoomId = $id ORDER BY inventoryNumber;", { id: textId }),
-      queryRows<Reference>(db, "SELECT id, fullName FROM user ORDER BY fullName;"),
-      queryRows<WorkflowRow>(db, "SELECT * FROM movement WHERE fromRoomId = $id OR toRoomId = $id ORDER BY movementDate DESC LIMIT 8;", { id: textId }),
-      queryRows<Record<string, unknown>>(db, "SELECT * FROM audit WHERE roomId = $id ORDER BY createdAt DESC LIMIT 8;", { id: textId }),
-      queryRows<AttachedFile>(db, "SELECT id, name, mimeType, size, kind, createdAt FROM file WHERE entityId = $id ORDER BY createdAt DESC;", { id: textId }),
-    ]);
+    const result = await queryBatch(db, `
+      SELECT * FROM equipment ORDER BY name;
+      SELECT * FROM equipment_instance WHERE currentRoomId = $id ORDER BY inventoryNumber;
+      SELECT id, fullName FROM user ORDER BY fullName;
+      SELECT * FROM movement WHERE fromRoomId = $id OR toRoomId = $id ORDER BY movementDate DESC LIMIT 8;
+      SELECT * FROM audit WHERE roomId = $id ORDER BY createdAt DESC LIMIT 8;
+      SELECT id, name, mimeType, size, kind, createdAt FROM file WHERE entityId = $id ORDER BY createdAt DESC;
+    `, { id: textId });
+    const models = batchRows<EquipmentModel>(result, 0);
+    const rawInstances = batchRows<EquipmentInstance>(result, 1);
+    const users = batchRows<Reference>(result, 2);
+    const movementRows = batchRows<WorkflowRow>(result, 3);
+    const audits = batchRows<Record<string, unknown>>(result, 4);
+    const files = batchRows<AttachedFile>(result, 5);
     const equipment = withInstanceLabels(rawInstances, models, [room], users);
     const movements = await enrichWorkflowRows(db, movementRows, "movements");
     return { room, equipment, movements, audits, files };
@@ -204,25 +223,33 @@ export async function getEquipmentPassport(id: string, instanceQuery?: string) {
     const textId = normalizeRecordIdString(id);
     const [equipment] = await queryRows<EquipmentModel>(db, "SELECT * FROM equipment WHERE id = $id LIMIT 1;", { id: record });
     if (!equipment) return null;
-    const [rawInstances, rooms, users, movementRows, repairs, audits, files] = await Promise.all([
-      queryRows<EquipmentInstance>(db, "SELECT * FROM equipment_instance WHERE equipmentId = $id ORDER BY inventoryNumber;", { id: textId }),
-      queryRows<Pick<Room, "id" | "number" | "name">>(db, "SELECT id, number, name FROM room ORDER BY number;"),
-      queryRows<Reference>(db, "SELECT id, fullName FROM user ORDER BY fullName;"),
-      queryRows<WorkflowRow>(db, "SELECT * FROM movement ORDER BY movementDate DESC;"),
-      queryRows<Record<string, unknown>>(db, "SELECT * FROM repair ORDER BY createdAt DESC;"),
-      queryRows<Record<string, unknown>>(db, "SELECT * FROM audit_item ORDER BY checkedAt DESC;"),
-      queryRows<AttachedFile>(db, "SELECT id, name, mimeType, size, kind, createdAt FROM file WHERE entityId = $id ORDER BY createdAt DESC;", { id: textId }),
-    ]);
+    const result = await queryBatch(db, `
+      SELECT * FROM equipment_instance WHERE equipmentId = $id ORDER BY inventoryNumber;
+      SELECT id, number, name FROM room ORDER BY number;
+      SELECT id, fullName FROM user ORDER BY fullName;
+      SELECT id, name, mimeType, size, kind, createdAt FROM file WHERE entityId = $id ORDER BY createdAt DESC;
+    `, { id: textId });
+    const rawInstances = batchRows<EquipmentInstance>(result, 0);
+    const rooms = batchRows<Pick<Room, "id" | "number" | "name">>(result, 1);
+    const users = batchRows<Reference>(result, 2);
+    const files = batchRows<AttachedFile>(result, 3);
     const instances = withInstanceLabels(rawInstances, [equipment], rooms, users);
     const instanceIds = new Set(instances.map((item) => idKey(item.id)));
+    const relatedResult = instanceIds.size
+      ? await queryBatch(db, `
+        SELECT * FROM movement WHERE equipmentId IN $instanceIds ORDER BY movementDate DESC;
+        SELECT * FROM repair WHERE equipmentId IN $instanceIds ORDER BY createdAt DESC;
+        SELECT * FROM audit_item WHERE equipmentId IN $instanceIds ORDER BY checkedAt DESC;
+      `, { instanceIds: [...instanceIds] })
+      : [[], [], []];
+    const movementRows = batchRows<WorkflowRow>(relatedResult, 0);
+    const repairs = batchRows<Record<string, unknown>>(relatedResult, 1);
+    const audits = batchRows<Record<string, unknown>>(relatedResult, 2);
     const needle = instanceQuery?.trim().toLowerCase();
     const filteredInstances = needle
       ? instances.filter((item) => [item.equipmentName, item.inventoryNumber, item.serialNumber, item.roomLabel, item.responsibleLabel, item.status, item.condition].filter(Boolean).join(" ").toLowerCase().includes(needle))
       : instances;
-    const relatedMovementRows = movementRows.filter((row) => instanceIds.has(idKey(row.equipmentId)));
-    const relatedRepairs = repairs.filter((row) => instanceIds.has(idKey(row.equipmentId)));
-    const relatedAudits = audits.filter((row) => instanceIds.has(idKey(row.equipmentId)));
-    const movements = await enrichWorkflowRows(db, relatedMovementRows, "movements");
-    return { equipment, instances, filteredInstances, instanceQuery: instanceQuery ?? "", movements, repairs: relatedRepairs, audits: relatedAudits, files };
+    const movements = await enrichWorkflowRows(db, movementRows, "movements");
+    return { equipment, instances, filteredInstances, instanceQuery: instanceQuery ?? "", movements, repairs, audits, files };
   });
 }

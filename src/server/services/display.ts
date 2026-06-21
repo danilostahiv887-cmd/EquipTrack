@@ -1,6 +1,6 @@
 import type { Surreal } from "surrealdb";
 import { normalizeRecordIdString } from "@/lib/db/record-id";
-import { queryRows } from "@/lib/db/repository";
+import { batchRows, queryBatch } from "@/lib/db/repository";
 import { formatDateTime, label, recordId } from "@/lib/format";
 
 export type DisplayRow = Record<string, unknown> & {
@@ -62,15 +62,22 @@ const idKey = (value: unknown) => {
 const byId = <T extends { id: unknown }>(rows: T[]) => new Map(rows.map((row) => [idKey(row.id), row]));
 
 export async function getLookupSet(db: Surreal): Promise<LookupSet> {
-  const [equipmentModels, equipmentInstances, rooms, buildings, users, audits, auditItems] = await Promise.all([
-    queryRows<EquipmentModelLookup>(db, "SELECT id, name, manufacturer, model FROM equipment;"),
-    queryRows<EquipmentLookup>(db, "SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId FROM equipment_instance;"),
-    queryRows<RoomLookup>(db, "SELECT id, number, name, buildingId FROM room;"),
-    queryRows<BuildingLookup>(db, "SELECT id, name FROM building;"),
-    queryRows<UserLookup>(db, "SELECT id, fullName, position, role FROM user;"),
-    queryRows<AuditLookup>(db, "SELECT id, title, roomId, status FROM audit;"),
-    queryRows<AuditItemLookup>(db, "SELECT auditId, equipmentId, scannedCode, resultStatus, expectedRoomId, actualRoomId, expectedSerialNumber, expectedInventoryNumber, actualCondition, expectedCondition, note, checkedAt FROM audit_item;"),
-  ]);
+  const result = await queryBatch(db, `
+    SELECT id, name, manufacturer, model FROM equipment;
+    SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId FROM equipment_instance;
+    SELECT id, number, name, buildingId FROM room;
+    SELECT id, name FROM building;
+    SELECT id, fullName, position, role FROM user;
+    SELECT id, title, roomId, status FROM audit;
+    SELECT auditId, equipmentId, scannedCode, resultStatus, expectedRoomId, actualRoomId, expectedSerialNumber, expectedInventoryNumber, actualCondition, expectedCondition, note, checkedAt FROM audit_item;
+  `);
+  const equipmentModels = batchRows<EquipmentModelLookup>(result, 0);
+  const equipmentInstances = batchRows<EquipmentLookup>(result, 1);
+  const rooms = batchRows<RoomLookup>(result, 2);
+  const buildings = batchRows<BuildingLookup>(result, 3);
+  const users = batchRows<UserLookup>(result, 4);
+  const audits = batchRows<AuditLookup>(result, 5);
+  const auditItems = batchRows<AuditItemLookup>(result, 6);
   const itemsByAudit = new Map<string, AuditItemLookup[]>();
   for (const item of auditItems) {
     const key = idKey(item.auditId);

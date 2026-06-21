@@ -7,6 +7,14 @@ export async function queryRows<T>(db: Surreal, query: string, variables: Record
   return (result[0] ?? []) as T[];
 }
 
+export async function queryBatch(db: Surreal, query: string, variables: Record<string, unknown> = {}) {
+  return db.query<unknown[]>(query, variables);
+}
+
+export function batchRows<T>(result: unknown[], index: number) {
+  return (result[index] ?? []) as T[];
+}
+
 export async function queryPage<T>(db: Surreal, table: string, page = 1, pageSize = 12): Promise<Page<T>> {
   const safePage = Math.max(1, page);
   const offset = (safePage - 1) * pageSize;

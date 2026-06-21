@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import type { Surreal } from "surrealdb";
 import { withDatabase } from "@/lib/db/client";
 import { queryRows } from "@/lib/db/repository";
@@ -41,7 +42,7 @@ export async function clearSession() {
   store.delete(sessionCookie);
 }
 
-export async function getCurrentUser(): Promise<WorkspaceUser | null> {
+async function readCurrentUser(): Promise<WorkspaceUser | null> {
   const token = (await cookies()).get(sessionCookie)?.value;
   if (!token) return null;
   try {
@@ -60,3 +61,5 @@ export async function getCurrentUser(): Promise<WorkspaceUser | null> {
     return null;
   }
 }
+
+export const getCurrentUser = cache(readCurrentUser);
