@@ -151,6 +151,7 @@ function auditSummary(row: DisplayRow, lookup: LookupSet) {
   const damaged = items.filter((item) => item.resultStatus === "damaged" || item.actualCondition === "damaged" || item.actualCondition === "unusable").length;
   const missing = items.filter((item) => item.resultStatus === "missing").length;
   const actualCount = found + misplaced + unknown + damaged;
+  const problemItems = items.filter((item) => ["misplaced", "missing", "unknown", "damaged"].includes(String(item.resultStatus ?? "")) || item.actualCondition === "damaged" || item.actualCondition === "unusable");
   const preview = items.slice(0, 7).map((item) => {
     const equipment = item.equipmentId ? describeEquipment(item.equipmentId, lookup) : `Невідомий номер ${item.scannedCode ?? "—"}`;
     const serial = item.expectedSerialNumber ? `серійний ${item.expectedSerialNumber}` : item.scannedCode ? `введено ${item.scannedCode}` : "";
@@ -160,11 +161,21 @@ function auditSummary(row: DisplayRow, lookup: LookupSet) {
       : "";
     return [equipment, serial, status, location].filter(Boolean).join(" · ");
   }).join("; ");
+  const problems = problemItems.slice(0, 10).map((item) => {
+    const equipment = item.equipmentId ? describeEquipment(item.equipmentId, lookup) : `Невідомий номер ${item.scannedCode ?? "—"}`;
+    const status = label(item.resultStatus ?? "pending", String(item.resultStatus ?? "pending"));
+    const condition = item.actualCondition ? `стан: ${label(item.actualCondition, String(item.actualCondition))}` : "";
+    const location = item.resultStatus === "misplaced"
+      ? `має бути: ${describeRoom(item.expectedRoomId, lookup)}; знайдено: ${describeRoom(item.actualRoomId, lookup)}`
+      : "";
+    return [equipment, status, condition, location, item.note].filter(Boolean).join(" · ");
+  }).join("; ");
   return {
     actualCount,
     expectedRegisteredCount,
     counted: `Очікувано за обліком ${expectedRegisteredCount} позицій${preview ? `: ${preview}${items.length > 7 ? "…" : ""}` : "."}`,
     result: `Знайдено: ${found + damaged}; не з цієї аудиторії: ${misplaced}; відсутнє: ${missing}; пошкоджено: ${damaged}; невідомі номери: ${unknown}; очікує перевірки: ${pending}.`,
+    problems: problems ? `Проблемні позиції (${problemItems.length}): ${problems}${problemItems.length > 10 ? "…" : ""}` : "Розбіжностей не зафіксовано.",
   };
 }
 
@@ -217,6 +228,7 @@ function decorateRow(row: DisplayRow, lookup: LookupSet, kind?: string): Display
     row.itemCountDelta = auditCountDelta(row.expectedItemCount, Number(row.actualItemCount ?? summary.actualCount));
     row.auditItemPreview = summary.counted;
     row.auditResult = row.auditResult || summary.result;
+    row.auditProblems = summary.problems;
   }
   if (kind === "movements" || row.movementType) row.quantity = "1 одиниця";
 

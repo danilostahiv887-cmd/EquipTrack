@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, startTransition } from "react";
 import type { Role } from "@/lib/types";
 
 type Module = { slug: string; label: string; code: string; roles: readonly Role[] };
@@ -44,7 +44,13 @@ export function CatalogIndex({ role }: { role: Role }) {
     window.localStorage.setItem("equiptrack.catalog.collapsed", next ? "1" : "0");
     return next;
   });
-  const visibleGroups = groups.map((group) => ({ ...group, modules: group.modules.filter(({ roles }) => roles.includes(role)) })).filter((group) => group.modules.length > 0);
+  const closeMobile = () => {
+    if (opened) startTransition(() => setOpened(false));
+  };
+  const visibleGroups = useMemo(
+    () => groups.map((group) => ({ ...group, modules: group.modules.filter(({ roles }) => roles.includes(role)) })).filter((group) => group.modules.length > 0),
+    [role],
+  );
   return <>
     <button className="catalog-mobile-toggle" type="button" onClick={() => setOpened(true)}>Розділи</button>
     <nav className={`catalog-index ${opened ? "catalog-index-open" : ""} ${collapsed ? "catalog-collapsed" : ""}`} aria-label="Розділи системи">
@@ -53,7 +59,7 @@ export function CatalogIndex({ role }: { role: Role }) {
         <span className="catalog-arrow-text">{collapsed ? "Розгорнути" : "Згорнути"}</span>
       </button>
       <header className="catalog-heading"><div><p>КАРТОТЕКА</p><span>Розділи системи</span></div><button className="catalog-close" type="button" onClick={() => setOpened(false)}>Закрити</button></header>
-      <div className="catalog-groups">{visibleGroups.map((group) => <section className="catalog-group" key={group.title}><h2>{group.title}</h2>{group.modules.map(({ slug, label, code }) => <Link className={pathname.startsWith(`/${slug}`) ? "catalog-current" : ""} href={`/${slug}`} key={slug} onClick={() => setOpened(false)}><span>{code}</span><b>{label}</b></Link>)}</section>)}</div>
+      <div className="catalog-groups">{visibleGroups.map((group) => <section className="catalog-group" key={group.title}><h2>{group.title}</h2>{group.modules.map(({ slug, label, code }) => <Link className={pathname.startsWith(`/${slug}`) ? "catalog-current" : ""} href={`/${slug}`} key={slug} onClick={closeMobile}><span>{code}</span><b>{label}</b></Link>)}</section>)}</div>
     </nav>
   </>;
 }

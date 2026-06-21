@@ -62,18 +62,22 @@ SURREAL_NAMESPACE=equiptrack
 SURREAL_DATABASE=production
 SURREAL_USERNAME=your_username
 SURREAL_PASSWORD=your_password
+SURREAL_WAKE_URL=https://your-instance.surreal.cloud/health
 AUTH_SECRET=long-random-secret
 NEXT_PUBLIC_APP_URL=https://your-render-service.onrender.com
 ```
 
 Пояснення:
 
-- `SURREAL_URL` — WebSocket URL вашого інстансу Surreal Cloud;
-- `SURREAL_NAMESPACE` — namespace, наприклад `equiptrack`;
-- `SURREAL_DATABASE` — database, наприклад `production`;
-- `SURREAL_USERNAME` і `SURREAL_PASSWORD` — дані користувача SurrealDB;
-- `AUTH_SECRET` — довгий випадковий секрет для підпису сесій;
-- `NEXT_PUBLIC_APP_URL` — публічна адреса застосунку.
+- `SURREAL_URL` — WebSocket URL інстансу Surreal Cloud. Його беріть у Surreal Cloud на сторінці інстансу в блоці підключення, формат зазвичай `wss://...surreal.cloud`;
+- `SURREAL_NAMESPACE` — namespace, який створений для застосунку, наприклад `equiptrack`;
+- `SURREAL_DATABASE` — database всередині namespace, наприклад `production`;
+- `SURREAL_USERNAME` і `SURREAL_PASSWORD` — root/auth користувач SurrealDB, створений у Surreal Cloud / Surrealist у розділі доступу;
+- `SURREAL_WAKE_URL` — опційна адреса health-запиту, наприклад `https://your-instance.surreal.cloud/health`. Якщо змінна порожня, застосунок сам спробує вивести цю адресу з `SURREAL_URL`;
+- `AUTH_SECRET` — довгий випадковий секрет для підпису сесій. У PowerShell можна згенерувати так: `[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))`;
+- `NEXT_PUBLIC_APP_URL` — публічна адреса застосунку, наприклад `https://equiptrack-4vm8.onrender.com`.
+
+Якщо SurrealDB Cloud інстанс paused, застосунок показує екран очікування й перевіряє `/api/health/database` кожні 3 секунди. Якщо Cloud не піднімає інстанс від простого health-запиту, відкрийте сторінку інстансу в Surreal Cloud і натисніть `Resume instance`; після готовності база визначиться автоматично, а сторінка оновиться.
 
 Не додавайте `.env.local` до Git.
 
@@ -237,6 +241,7 @@ SURREAL_NAMESPACE=equiptrack
 SURREAL_DATABASE=production
 SURREAL_USERNAME=your_username
 SURREAL_PASSWORD=your_password
+SURREAL_WAKE_URL=https://your-instance.surreal.cloud/health
 AUTH_SECRET=long-random-secret
 NEXT_PUBLIC_APP_URL=https://your-render-service.onrender.com
 ```

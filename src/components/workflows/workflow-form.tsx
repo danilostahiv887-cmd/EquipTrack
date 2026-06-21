@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { FieldError, FormFeedback, fieldClass, invalid, labelClass } from "@/components/ui/form-errors";
 import { ConfirmSubmit } from "@/components/ui/confirm-submit";
 import { formatDateTime, label, recordId } from "@/lib/format";
@@ -365,15 +365,24 @@ export function AuditScanForm({ auditId, auditRoomId, equipment, auditItems }: {
   const [state, action, pending] = useActionState(scanAuditItemAction, initial);
   const fieldErrors = state.fieldErrors;
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(valueOf(state, "equipmentId"));
-  const activeId = selectedId;
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (state.success) {
+      setSelectedIds([]);
+      setQuery("");
+    }
+  }, [state.success]);
   const normalizedAuditRoom = auditRoomId ? recordId(auditRoomId) : "";
   const auditIdText = recordId(auditId);
   const equipmentById = useMemo(() => new Map(equipment.map((item) => [recordId(item.id), item])), [equipment]);
   const checkedItems = useMemo(() => auditItems.filter(isCheckedAuditItem), [auditItems]);
   const checkedEquipmentIds = useMemo(() => new Set(checkedItems.map((item) => item.equipmentId ? recordId(item.equipmentId) : "").filter(Boolean)), [checkedItems]);
-  const availableEquipment = useMemo(() => equipment.filter((item) => !checkedEquipmentIds.has(recordId(item.id)) || recordId(item.id) === activeId), [activeId, checkedEquipmentIds, equipment]);
-  const selected = useMemo(() => equipment.find((item) => recordId(item.id) === activeId), [activeId, equipment]);
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const availableEquipment = useMemo(() => equipment.filter((item) => !checkedEquipmentIds.has(recordId(item.id)) || selectedIdSet.has(recordId(item.id))), [checkedEquipmentIds, equipment, selectedIdSet]);
+  const selectedEquipment = useMemo(() => selectedIds.map((id) => equipmentById.get(id)).filter((item): item is EquipmentOption => Boolean(item)), [equipmentById, selectedIds]);
+  const toggleSelected = (id: string) => {
+    setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  };
   const filteredEquipment = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const rows = needle
@@ -433,7 +442,7 @@ export function AuditScanForm({ auditId, auditRoomId, equipment, auditItems }: {
 
       <form key={formKey(state.values)} action={action} noValidate className="passport-form audit-scan-form">
         <input type="hidden" name="auditId" value={auditIdText} />
-        <input type="hidden" name="equipmentId" value={activeId} />
+        {selectedIds.map((id) => <input key={id} type="hidden" name="equipmentIds" value={id} />)}
 
         <div className="audit-search-panel">
           <div className="audit-search-copy">
@@ -454,13 +463,13 @@ export function AuditScanForm({ auditId, auditRoomId, equipment, auditItems }: {
           </label>
         </div>
 
-        {selected && (
+        {selectedEquipment.length > 0 && (
           <div className="audit-selected-equipment">
-            <span>Обрано</span>
-            <strong>{selected.equipmentName}</strong>
-            <code>{selected.inventoryNumber} · {selected.serialNumber}</code>
-            <small>{selected.roomLabel || "Приміщення не вказано"}</small>
-            <button type="button" onClick={() => setSelectedId("")}>Очистити вибір</button>
+            <span>Обрано {selectedEquipment.length}</span>
+            <strong>{selectedEquipment.slice(0, 3).map((item) => item.equipmentName).join("; ")}{selectedEquipment.length > 3 ? "…" : ""}</strong>
+            <code>{selectedEquipment.slice(0, 4).map((item) => item.inventoryNumber).join("; ")}</code>
+            <small>{selectedEquipment.some((item) => normalizedAuditRoom && recordId(item.currentRoomId) !== normalizedAuditRoom) ? "У виборі є екземпляри з інших приміщень" : "Усі вибрані закріплені за цією аудиторією"}</small>
+            <button type="button" onClick={() => setSelectedIds([])}>Очистити вибір</button>
           </div>
         )}
 
@@ -468,16 +477,17 @@ export function AuditScanForm({ auditId, auditRoomId, equipment, auditItems }: {
           {filteredEquipment.map((item) => {
             const id = recordId(item.id);
             const sameRoom = normalizedAuditRoom && recordId(item.currentRoomId) === normalizedAuditRoom;
-            const isActive = id === activeId;
+            const isActive = selectedIdSet.has(id);
             return (
               <button
                 key={id}
                 type="button"
                 className={`audit-equipment-option${isActive ? " audit-equipment-option-active" : ""}`}
-                onClick={() => setSelectedId(id)}
+                onClick={() => toggleSelected(id)}
                 role="option"
                 aria-selected={isActive}
               >
+                <span className="audit-equipment-check" aria-hidden="true">{isActive ? "✓" : "+"}</span>
                 <span className="audit-equipment-main">
                   <strong>{item.equipmentName}</strong>
                   <small>{item.inventoryNumber} · {item.serialNumber}</small>
@@ -539,7 +549,7 @@ export function AuditScanForm({ auditId, auditRoomId, equipment, auditItems }: {
         </div>
 
         <FormFeedback formError={state.formError} fieldErrors={fieldErrors} success={state.success} />
-        {submit(pending, "Внести екземпляр")}
+        {submit(pending, selectedEquipment.length > 1 ? `Внести ${selectedEquipment.length} екземпляри` : "Внести екземпляр")}
       </form>
     </div>
   );

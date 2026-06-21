@@ -18,5 +18,6 @@ export const env = {
   surrealDatabase: process.env.SURREAL_DATABASE?.trim() || "production",
   surrealUsername: process.env.SURREAL_USERNAME?.trim() || "",
   surrealPassword: process.env.SURREAL_PASSWORD?.trim() || "",
+  surrealWakeUrl: process.env.SURREAL_WAKE_URL?.trim() || "",
   authSecret: process.env.AUTH_SECRET?.trim() || "",
 } as const;

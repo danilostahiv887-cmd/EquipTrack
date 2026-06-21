@@ -45,15 +45,11 @@ const auditItemStateSchema = z.object({
 });
 const auditScanSchema = z.object({
   auditId: recordRef("Некоректний аудит."),
-  equipmentId: z.string().trim().optional(),
   code: z.string().trim().optional(),
   actualCondition: z.enum(["good", "satisfactory", "needs_repair", "damaged", "unusable"], { required_error: "Оберіть фактичний стан.", invalid_type_error: "Оберіть фактичний стан." }),
   note: z.string().trim().max(400, "Примітка має містити не більше 400 символів.").optional(),
 }).superRefine((value, ctx) => {
-  const hasInstance = Boolean(value.equipmentId?.trim());
   const hasCode = Boolean(value.code?.trim());
-  if (!hasInstance && !hasCode) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["code"], message: "Оберіть екземпляр або введіть серійний/інвентарний номер." });
-  if (hasInstance && !/^equipment_instance:[A-Za-z0-9_-]+$/.test(value.equipmentId ?? "")) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["equipmentId"], message: "Некоректний екземпляр обладнання." });
   if (hasCode && String(value.code).trim().length < 2) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["code"], message: "Номер має містити щонайменше 2 символи." });
 });
 const writeoffSchema = z.object({ equipmentId, reason: requiredText("Вкажіть обґрунтування списання.").min(6, "Обґрунтування має містити щонайменше 6 символів.") });
@@ -339,7 +335,14 @@ export async function deleteAuditAction(formData: FormData) {
 export async function scanAuditItemAction(_: WorkflowActionState, formData: FormData): Promise<WorkflowActionState> {
   const user = await getCurrentUser(); if (!user) return { formError: "Сеанс завершено." };
   try { assertPermission(user, "audit:manage"); } catch (error) { return initialError(error, formData); }
+  const selectedInstanceIds = [...new Set(formData.getAll("equipmentIds").filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean))];
   const parsed = auditScanSchema.safeParse(Object.fromEntries(formData)); if (!parsed.success) return fieldErrors(parsed.error, formData);
+  if (!selectedInstanceIds.length && !parsed.data.code?.trim()) {
+    return { fieldErrors: { code: ["Оберіть один або кілька екземплярів або введіть серійний/інвентарний номер."] }, values: formValues(formData) };
+  }
+  if (selectedInstanceIds.some((id) => !/^equipment_instance:[A-Za-z0-9_-]+$/.test(id))) {
+    return { fieldErrors: { equipmentId: ["Серед вибраних екземплярів є некоректний запис."] }, values: formValues(formData) };
+  }
   const timestamp = new Date().toISOString();
   try {
     await withDatabase(async (db) => {
@@ -348,19 +351,26 @@ export async function scanAuditItemAction(_: WorkflowActionState, formData: Form
       if (!audit) throw new Error("Аудит не знайдено.");
       if (audit.status !== "in_progress") throw new Error("Вносити знайдені екземпляри можна лише в аудиті зі станом «У роботі».");
       const code = parsed.data.code?.trim() ?? "";
-      const selectedInstanceId = parsed.data.equipmentId?.trim() ?? "";
-      const [equipment] = selectedInstanceId
+      const selectedRecords = selectedInstanceIds.map((id) => toRecordId(id));
+      const selectedEquipment = selectedRecords.length
         ? await queryRows<{ id: unknown; equipmentId?: string; inventoryNumber?: string; serialNumber?: string; currentRoomId?: string; condition?: string }>(
           db,
-          "SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId, condition FROM equipment_instance WHERE id = $id LIMIT 1;",
-          { id: toRecordId(selectedInstanceId) },
+          "SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId, condition FROM equipment_instance WHERE id IN $ids;",
+          { ids: selectedRecords },
         )
-        : await queryRows<{ id: unknown; equipmentId?: string; inventoryNumber?: string; serialNumber?: string; currentRoomId?: string; condition?: string }>(
+        : [];
+      const manualEquipment = !selectedEquipment.length && code
+        ? await queryRows<{ id: unknown; equipmentId?: string; inventoryNumber?: string; serialNumber?: string; currentRoomId?: string; condition?: string }>(
           db,
           "SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId, condition FROM equipment_instance WHERE serialNumber = $code OR inventoryNumber = $code LIMIT 1;",
           { code },
-        );
-      if (!equipment) {
+        )
+        : [];
+      const equipmentRows = selectedEquipment.length ? selectedEquipment : manualEquipment;
+
+      if (selectedInstanceIds.length && selectedEquipment.length !== selectedInstanceIds.length) throw new Error("Один або кілька вибраних екземплярів не знайдено в реєстрі.");
+
+      if (!equipmentRows.length) {
         const [duplicateUnknown] = code
           ? await queryRows<{ id: unknown }>(db, "SELECT id FROM audit_item WHERE auditId = $auditId AND scannedCode = $code LIMIT 1;", { auditId: auditText, code })
           : [];
@@ -371,7 +381,7 @@ export async function scanAuditItemAction(_: WorkflowActionState, formData: Form
           time: timestamp,
           item: {
             auditId: auditText,
-            scannedCode: code || selectedInstanceId,
+            scannedCode: code,
             actualRoomId: audit.roomId,
             actualCondition: parsed.data.actualCondition,
             resultStatus: "unknown",
@@ -385,47 +395,70 @@ export async function scanAuditItemAction(_: WorkflowActionState, formData: Form
         return;
       }
 
-      const equipmentIdText = normalizeRecordIdString(equipment.id);
-      const expectedRoomId = normalizeRecordIdString(equipment.currentRoomId ?? "");
       const auditRoomId = normalizeRecordIdString(audit.roomId);
-      const resultStatus = expectedRoomId === auditRoomId
-        ? (["damaged", "unusable"].includes(parsed.data.actualCondition) ? "damaged" : "found")
-        : "misplaced";
       const items = await queryRows<{ id: unknown; equipmentId?: string; resultStatus?: string }>(db, "SELECT id, equipmentId, resultStatus FROM audit_item WHERE auditId = $auditId;", { auditId: auditText });
-      const existing = items.find((item) => normalizeRecordIdString(item.equipmentId ?? "") === equipmentIdText);
-      if (existing?.id && existing.resultStatus && existing.resultStatus !== "pending") {
-        throw new Error("Цей екземпляр уже внесено до аудиту. Якщо запис помилковий — спочатку приберіть його у списку перевірених екземплярів.");
-      }
-      const item = {
-        auditId: auditText,
-        equipmentId: equipmentIdText,
-        expectedRoomId: equipment.currentRoomId,
-        actualRoomId: audit.roomId,
-        expectedSerialNumber: equipment.serialNumber,
-        expectedInventoryNumber: equipment.inventoryNumber,
-        actualCondition: parsed.data.actualCondition,
-        expectedCondition: equipment.condition,
-        resultStatus,
-        note: parsed.data.note || undefined,
-        checkedBy: user.id,
-        checkedAt: timestamp,
-        updatedAt: timestamp,
-      };
-      const itemId = existing?.id ? normalizeRecordIdString(existing.id) : generated("audit_item");
-      const statement = existing?.id ? "UPDATE $itemId MERGE $item;" : `CREATE ${itemId} CONTENT $item;`;
-      await db.query(`BEGIN TRANSACTION; ${statement} UPDATE $audit MERGE { updatedAt: $time }; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;`, {
-        itemId: existing?.id ? toRecordId(itemId) : undefined,
-        item,
+      const existingByEquipment = new Map(items.map((item) => [normalizeRecordIdString(item.equipmentId ?? ""), item]));
+      const statements: string[] = [];
+      const params: Record<string, unknown> = {
         audit: parsed.data.auditId,
         time: timestamp,
         log: { actorId: user.id, action: "audit.item_scanned", entityType: "audit", entityId: auditText, createdAt: timestamp },
+      };
+      const misplacedItems: Array<{ inventoryNumber?: string; serialNumber?: string }> = [];
+
+      equipmentRows.forEach((equipment, index) => {
+        const equipmentIdText = normalizeRecordIdString(equipment.id);
+        const expectedRoomId = normalizeRecordIdString(equipment.currentRoomId ?? "");
+        const resultStatus = expectedRoomId === auditRoomId
+          ? (["damaged", "unusable"].includes(parsed.data.actualCondition) ? "damaged" : "found")
+          : "misplaced";
+        const existing = existingByEquipment.get(equipmentIdText);
+        if (existing?.id && existing.resultStatus && existing.resultStatus !== "pending") {
+          throw new Error(`Екземпляр ${equipment.inventoryNumber ?? equipment.serialNumber ?? equipmentIdText} уже внесено до аудиту. Якщо запис помилковий — спочатку приберіть його у списку перевірених екземплярів.`);
+        }
+        const item = {
+          auditId: auditText,
+          equipmentId: equipmentIdText,
+          expectedRoomId: equipment.currentRoomId,
+          actualRoomId: audit.roomId,
+          expectedSerialNumber: equipment.serialNumber,
+          expectedInventoryNumber: equipment.inventoryNumber,
+          actualCondition: parsed.data.actualCondition,
+          expectedCondition: equipment.condition,
+          resultStatus,
+          note: parsed.data.note || undefined,
+          checkedBy: user.id,
+          checkedAt: timestamp,
+          updatedAt: timestamp,
+        };
+        if (resultStatus === "misplaced") misplacedItems.push({ inventoryNumber: equipment.inventoryNumber, serialNumber: equipment.serialNumber });
+        params[`item${index}`] = item;
+        if (existing?.id) {
+          params[`itemId${index}`] = toRecordId(normalizeRecordIdString(existing.id));
+          statements.push(`UPDATE $itemId${index} MERGE $item${index};`);
+        } else {
+          statements.push(`CREATE ${generated("audit_item")} CONTENT $item${index};`);
+        }
       });
+
+      if (misplacedItems.length) {
+        const managers = await queryRows<{ id: unknown }>(db, "SELECT id FROM user WHERE status = 'active' AND (role = 'admin' OR role = 'inventory_manager');");
+        managers.forEach((manager, index) => {
+          const title = "Розбіжність аудиту";
+          const body = misplacedItems.length === 1
+            ? `Під час аудиту знайдено не в цьому приміщенні: ${misplacedItems[0].inventoryNumber ?? misplacedItems[0].serialNumber ?? "екземпляр без номера"}.`
+            : `Під час аудиту знайдено ${misplacedItems.length} екземпляри не з цього приміщення. Перевірте деталі аудиту.`;
+          params[`notification${index}`] = { userId: normalizeRecordIdString(manager.id), type: "system", title, body, isRead: false, createdAt: timestamp };
+          statements.push(`CREATE notification CONTENT $notification${index};`);
+        });
+      }
+      await db.query(`BEGIN TRANSACTION; ${statements.join(" ")} UPDATE $audit MERGE { updatedAt: $time }; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;`, params);
     });
   } catch (error) {
     return initialError(error, formData);
   }
   revalidatePath("/audits");
-  return { success: "Екземпляр внесено до аудиту." };
+  return { success: selectedInstanceIds.length > 1 ? "Екземпляри внесено до аудиту." : "Екземпляр внесено до аудиту." };
 }
 
 export async function deleteAuditItemAction(formData: FormData) {
