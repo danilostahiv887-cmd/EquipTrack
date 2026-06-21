@@ -18,7 +18,7 @@ import {
 
 const initial: WorkflowActionState = {};
 
-type EquipmentOption = { id: unknown; equipmentId?: string; equipmentName?: string; inventoryNumber: string; serialNumber?: string; currentRoomId: string; roomLabel?: string; condition?: string; status?: string };
+export type EquipmentOption = { id: unknown; equipmentId?: string; equipmentName?: string; inventoryNumber: string; serialNumber?: string; currentRoomId: string; roomLabel?: string; condition?: string; status?: string };
 type RoomOption = { id: unknown; number: string; name?: string };
 type AuditItemOption = {
   id: unknown;

@@ -45,7 +45,7 @@ type AuditItemLookup = {
 };
 type AuditLookup = { id: unknown; title?: string; roomId?: string; status?: string };
 
-type LookupSet = {
+export type LookupSet = {
   equipment: Map<string, EquipmentLookup>;
   rooms: Map<string, RoomLookup>;
   buildings: Map<string, BuildingLookup>;
@@ -54,12 +54,49 @@ type LookupSet = {
   auditItems: Map<string, AuditItemLookup[]>;
 };
 
+export type LookupRows = {
+  equipmentModels?: EquipmentModelLookup[];
+  equipmentInstances?: EquipmentLookup[];
+  rooms?: RoomLookup[];
+  buildings?: BuildingLookup[];
+  users?: UserLookup[];
+  audits?: AuditLookup[];
+  auditItems?: AuditItemLookup[];
+};
+
 const idKey = (value: unknown) => {
   if (value == null || value === "") return "";
   return normalizeRecordIdString(recordId(value));
 };
 
 const byId = <T extends { id: unknown }>(rows: T[]) => new Map(rows.map((row) => [idKey(row.id), row]));
+
+export function buildLookupSet({
+  equipmentModels = [],
+  equipmentInstances = [],
+  rooms = [],
+  buildings = [],
+  users = [],
+  audits = [],
+  auditItems = [],
+}: LookupRows): LookupSet {
+  const itemsByAudit = new Map<string, AuditItemLookup[]>();
+  for (const item of auditItems) {
+    const key = idKey(item.auditId);
+    if (!key) continue;
+    const bucket = itemsByAudit.get(key) ?? [];
+    bucket.push(item);
+    itemsByAudit.set(key, bucket);
+  }
+  const modelMap = byId(equipmentModels);
+  const equipment = new Map<string, EquipmentLookup>();
+  for (const model of equipmentModels) equipment.set(idKey(model.id), { id: model.id, name: model.name });
+  for (const instance of equipmentInstances) {
+    const model = modelMap.get(idKey(instance.equipmentId));
+    equipment.set(idKey(instance.id), { ...instance, name: model?.name });
+  }
+  return { equipment, rooms: byId(rooms), buildings: byId(buildings), users: byId(users), audits: byId(audits), auditItems: itemsByAudit };
+}
 
 export async function getLookupSet(db: Surreal): Promise<LookupSet> {
   const result = await queryBatch(db, `
@@ -78,22 +115,7 @@ export async function getLookupSet(db: Surreal): Promise<LookupSet> {
   const users = batchRows<UserLookup>(result, 4);
   const audits = batchRows<AuditLookup>(result, 5);
   const auditItems = batchRows<AuditItemLookup>(result, 6);
-  const itemsByAudit = new Map<string, AuditItemLookup[]>();
-  for (const item of auditItems) {
-    const key = idKey(item.auditId);
-    if (!key) continue;
-    const bucket = itemsByAudit.get(key) ?? [];
-    bucket.push(item);
-    itemsByAudit.set(key, bucket);
-  }
-  const modelMap = byId(equipmentModels);
-  const equipment = new Map<string, EquipmentLookup>();
-  for (const model of equipmentModels) equipment.set(idKey(model.id), { id: model.id, name: model.name });
-  for (const instance of equipmentInstances) {
-    const model = modelMap.get(idKey(instance.equipmentId));
-    equipment.set(idKey(instance.id), { ...instance, name: model?.name });
-  }
-  return { equipment, rooms: byId(rooms), buildings: byId(buildings), users: byId(users), audits: byId(audits), auditItems: itemsByAudit };
+  return buildLookupSet({ equipmentModels, equipmentInstances, rooms, buildings, users, audits, auditItems });
 }
 
 export function describeRoom(id: unknown, lookup: LookupSet) {
@@ -252,6 +274,14 @@ function decorateRow(row: DisplayRow, lookup: LookupSet, kind?: string): Display
     row.__title = String(row.title ?? "Інвентаризація");
     row.__subtitle = [room, status, row.auditResult && String(row.auditResult)].filter(Boolean).join(" · ");
   } else if (kind === "writeoffs") {
+    const writeoffProgress: Record<string, string> = {
+      proposed: "Запропоновано → очікує рішення адміністратора → фактичне списання",
+      approved: "Запропоновано → погоджено → очікує підтвердження фактичного списання",
+      completed: "Запропоновано → погоджено → списання завершено",
+      rejected: "Запропоновано → відхилено",
+      cancelled: "Запропоновано → скасовано ініціатором",
+    };
+    row.writeoffProgress = writeoffProgress[String(row.status ?? "")] ?? "Маршрут списання не визначено.";
     row.__title = equipment ? `Списання: ${equipment}` : String(row.reason ?? "Пропозиція списання");
     row.__subtitle = [row.reason && String(row.reason), status].filter(Boolean).join(" · ");
   } else if (kind === "notifications") {
@@ -269,6 +299,10 @@ function decorateRow(row: DisplayRow, lookup: LookupSet, kind?: string): Display
 
 export async function enrichWorkflowRows(db: Surreal, rows: DisplayRow[], kind?: string) {
   const lookup = await getLookupSet(db);
+  return enrichWorkflowRowsWithLookup(rows, lookup, kind);
+}
+
+export function enrichWorkflowRowsWithLookup(rows: DisplayRow[], lookup: LookupSet, kind?: string) {
   return rows.map((row) => decorateRow({ ...row }, lookup, kind));
 }
 

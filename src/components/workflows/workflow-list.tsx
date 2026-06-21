@@ -43,6 +43,7 @@ const fieldLabels: Record<string, string> = {
   auditResult: "Підсумок перевірки",
   auditProblems: "Проблемні позиції",
   auditNote: "Примітка для перевірки",
+  writeoffProgress: "Маршрут списання",
   quantity: "Кількість",
   status: "Стан",
   plannedDate: "Планова дата",
@@ -58,7 +59,7 @@ const fieldLabels: Record<string, string> = {
 const hiddenFields = new Set(["id", "passwordHash", "__display", "__title", "__subtitle", "__search"]);
 const preferredOrder = [
   "movementType", "title", "body", "type", "status", "equipmentId", "fromRoomId", "toRoomId", "roomId",
-  "quantity", "auditScope", "expectedItemCount", "expectedRegisteredCount", "actualItemCount", "itemCountDelta", "auditItemPreview", "auditResult", "auditProblems", "auditNote", "reason", "issueDescription", "severity", "requestedBy", "reportedBy",
+  "quantity", "auditScope", "expectedItemCount", "expectedRegisteredCount", "actualItemCount", "itemCountDelta", "auditItemPreview", "auditResult", "auditProblems", "auditNote", "writeoffProgress", "reason", "issueDescription", "severity", "requestedBy", "reportedBy",
   "performedBy", "acceptedBy", "createdBy", "checkedBy", "approvedBy", "rejectedBy", "handledBy", "completedBy", "actorId", "entityType",
   "entityId", "movementDate", "plannedDate", "createdAt", "approvedAt", "rejectedAt", "updatedAt", "completedAt", "readAt",
 ];

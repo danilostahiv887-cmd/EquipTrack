@@ -27,6 +27,8 @@ export const schemaStatements = [
   "DEFINE INDEX OVERWRITE transfer_status ON TABLE transfer_request FIELDS status;",
   "DEFINE INDEX OVERWRITE repair_status ON TABLE repair FIELDS status;",
   "DEFINE INDEX OVERWRITE audit_room_status ON TABLE audit FIELDS roomId, status;",
+  "DEFINE INDEX OVERWRITE writeoff_status ON TABLE writeoff_request FIELDS status;",
+  "DEFINE INDEX OVERWRITE writeoff_equipment ON TABLE writeoff_request FIELDS equipmentId;",
   "DEFINE INDEX OVERWRITE notification_user_read ON TABLE notification FIELDS userId, isRead;",
   "DEFINE INDEX OVERWRITE audit_log_actor_time ON TABLE audit_log FIELDS actorId, createdAt;",
 ] as const;

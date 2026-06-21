@@ -57,6 +57,7 @@ export type MovementReferences = {
     expectedInventoryNumber?: string;
   }>;
 };
+export type WriteoffEquipmentOption = Pick<EquipmentInstance, "id" | "equipmentId" | "equipmentName" | "inventoryNumber" | "serialNumber" | "currentRoomId" | "condition" | "status">;
 type AttachedFile = { id: unknown; name?: string; mimeType?: string; size?: number; kind?: string; createdAt?: string };
 type WorkflowRow = Record<string, unknown> & { id: unknown };
 export type RoomFilters = { q?: string; status?: string; buildingId?: string; typeId?: string };
@@ -204,6 +205,27 @@ export async function getMovementReferences(): Promise<MovementReferences> {
     const auditItems = batchRows<MovementReferences["auditItems"][number]>(result, 4);
     const equipment = withInstanceLabels(rawInstances, models, rooms, users).sort((left, right) => compact([left.equipmentName, left.inventoryNumber]).localeCompare(compact([right.equipmentName, right.inventoryNumber]), "uk"));
     return { equipment, rooms, auditItems };
+  });
+}
+
+export async function getWriteoffEquipmentOptions(): Promise<WriteoffEquipmentOption[]> {
+  return withDatabase(async (db) => {
+    const result = await queryBatch(db, `
+      SELECT id, name, manufacturer, model FROM equipment ORDER BY name;
+      SELECT id, equipmentId, inventoryNumber, serialNumber, currentRoomId, condition, status FROM equipment_instance WHERE status != 'written_off' ORDER BY inventoryNumber;
+    `);
+    const models = batchRows<EquipmentModel>(result, 0);
+    const instances = batchRows<EquipmentInstance>(result, 1);
+    return withInstanceLabels(instances, models, [], []).map((item) => ({
+      id: recordId(item.id),
+      equipmentId: item.equipmentId,
+      equipmentName: item.equipmentName,
+      inventoryNumber: item.inventoryNumber,
+      serialNumber: item.serialNumber,
+      currentRoomId: item.currentRoomId,
+      condition: item.condition,
+      status: item.status,
+    }));
   });
 }
 

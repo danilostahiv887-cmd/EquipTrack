@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth/session";
-import { assertPermission } from "@/lib/auth/permissions";
+import { assertPermission, can } from "@/lib/auth/permissions";
 import { withDatabase } from "@/lib/db/client";
 import { normalizeRecordIdString, toRecordId } from "@/lib/db/record-id";
 import { queryRows } from "@/lib/db/repository";
@@ -58,6 +58,7 @@ const repairTransitionSchema = z.object({
   status: z.enum(["under_review", "sent_to_repair", "repaired", "not_repairable", "cancelled"]),
 });
 const requestId = recordRef("Некоректна заявка.");
+const writeoffRequestId = recordRef("Некоректний запит на списання.");
 
 function fieldErrors(error: z.ZodError, formData?: FormData) {
   return {
@@ -529,20 +530,139 @@ export async function createWriteoffAction(_: WorkflowActionState, formData: For
   try { assertPermission(user, "writeoff:propose"); } catch (error) { return initialError(error, formData); }
   const parsed = writeoffSchema.safeParse(Object.fromEntries(formData)); if (!parsed.success) return fieldErrors(parsed.error, formData);
   const timestamp = new Date().toISOString();
-  await withDatabase((db) => db.query("CREATE writeoff_request CONTENT $value;", { value: { ...parsed.data, status: "proposed", proposedBy: user.id, createdAt: timestamp } }));
+  try {
+    await withDatabase(async (db) => {
+      const [instance] = await queryRows<{ status?: string }>(db, "SELECT status FROM equipment_instance WHERE id = $id LIMIT 1;", { id: toRecordId(parsed.data.equipmentId) });
+      if (!instance) throw new Error("Екземпляр обладнання не знайдено.");
+      if (instance.status === "written_off") throw new Error("Цей екземпляр уже списано.");
+      const [activeRequest] = await queryRows<{ id: unknown }>(db, "SELECT id FROM writeoff_request WHERE equipmentId = $equipmentId AND (status = 'proposed' OR status = 'approved') LIMIT 1;", { equipmentId: parsed.data.equipmentId });
+      if (activeRequest) throw new Error("Для цього екземпляра вже є активна пропозиція списання.");
+      await db.query(
+        "BEGIN TRANSACTION; CREATE writeoff_request CONTENT $value; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;",
+        {
+          value: { ...parsed.data, status: "proposed", proposedBy: user.id, createdAt: timestamp, updatedAt: timestamp },
+          log: { actorId: user.id, action: "writeoff.proposed", entityType: "equipment_instance", entityId: parsed.data.equipmentId, createdAt: timestamp },
+        },
+      );
+    });
+  } catch (error) {
+    return initialError(error, formData);
+  }
   await addNotification("user:admin", "Нова пропозиція списання", "Потрібне рішення адміністратора щодо списання обладнання.");
-  revalidatePath("/writeoffs"); return { success: "Пропозицію списання передано адміністратору." };
+  revalidatePath("/writeoffs"); revalidatePath("/dashboard"); revalidatePath("/notifications");
+  return { success: "Пропозицію списання передано адміністратору." };
 }
 
 export async function approveWriteoffAction(formData: FormData) {
   const user = await getCurrentUser(); if (!user) return;
   assertPermission(user, "writeoff:approve");
-  const requestId = recordRef("Некоректний запит на списання.").parse(formData.get("requestId"));
+  const requestId = writeoffRequestId.parse(formData.get("requestId"));
+  let proposedBy = "";
   await withDatabase(async (db) => {
-    const [request] = await queryRows<{ equipmentId: string }>(db, "SELECT equipmentId FROM writeoff_request WHERE id = $id LIMIT 1;", { id: requestId });
-    if (!request) throw new Error("Запит на списання не знайдено.");
-    const timestamp = new Date().toISOString(); const movementId = generated("movement");
-    await db.query(`BEGIN TRANSACTION; UPDATE $equipment MERGE { status: 'written_off', archivedAt: $time }; UPDATE $request MERGE { status: 'approved', approvedBy: $actor, completedAt: $time }; CREATE ${movementId} CONTENT $movement; COMMIT TRANSACTION;`, { equipment: toRecordId(request.equipmentId), request: requestId, time: timestamp, actor: user.id, movement: { equipmentId: request.equipmentId, movementType: "written_off", performedBy: user.id, movementDate: timestamp, reason: "Списання погоджено", createdAt: timestamp } });
+    const [request] = await queryRows<{ status?: string; proposedBy?: string }>(db, "SELECT status, proposedBy FROM writeoff_request WHERE id = $id LIMIT 1;", { id: requestId });
+    if (!request || request.status !== "proposed") throw new Error("Погодити можна лише запропоноване списання.");
+    proposedBy = normalizeRecordIdString(request.proposedBy ?? "");
+    const timestamp = new Date().toISOString();
+    await db.query(
+      "BEGIN TRANSACTION; UPDATE $request MERGE { status: 'approved', approvedBy: $actor, approvedAt: $time, updatedAt: $time }; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;",
+      {
+        request: requestId,
+        actor: user.id,
+        time: timestamp,
+        log: { actorId: user.id, action: "writeoff.approved", entityType: "writeoff_request", entityId: normalizeRecordIdString(requestId), createdAt: timestamp },
+      },
+    );
   });
-  revalidatePath("/writeoffs"); revalidatePath("/equipment"); revalidatePath("/dashboard");
+  if (proposedBy) await addNotification(proposedBy, "Списання погоджено", "Адміністратор погодив пропозицію. Після фактичного вилучення підтвердьте завершення списання.");
+  revalidatePath("/writeoffs"); revalidatePath("/dashboard"); revalidatePath("/notifications");
+}
+
+export async function rejectWriteoffAction(formData: FormData) {
+  const user = await getCurrentUser(); if (!user) return;
+  assertPermission(user, "writeoff:approve");
+  const requestId = writeoffRequestId.parse(formData.get("requestId"));
+  let proposedBy = "";
+  await withDatabase(async (db) => {
+    const [request] = await queryRows<{ status?: string; proposedBy?: string }>(db, "SELECT status, proposedBy FROM writeoff_request WHERE id = $id LIMIT 1;", { id: requestId });
+    if (!request || request.status !== "proposed") throw new Error("Відхилити можна лише запропоноване списання.");
+    proposedBy = normalizeRecordIdString(request.proposedBy ?? "");
+    const timestamp = new Date().toISOString();
+    await db.query(
+      "BEGIN TRANSACTION; UPDATE $request MERGE { status: 'rejected', rejectedBy: $actor, rejectedAt: $time, updatedAt: $time }; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;",
+      {
+        request: requestId,
+        actor: user.id,
+        time: timestamp,
+        log: { actorId: user.id, action: "writeoff.rejected", entityType: "writeoff_request", entityId: normalizeRecordIdString(requestId), createdAt: timestamp },
+      },
+    );
+  });
+  if (proposedBy) await addNotification(proposedBy, "Списання відхилено", "Адміністратор відхилив пропозицію списання. Екземпляр лишається в обліку.");
+  revalidatePath("/writeoffs"); revalidatePath("/dashboard"); revalidatePath("/notifications");
+}
+
+export async function cancelWriteoffAction(formData: FormData) {
+  const user = await getCurrentUser(); if (!user) return;
+  assertPermission(user, "writeoff:propose");
+  const requestId = writeoffRequestId.parse(formData.get("requestId"));
+  await withDatabase(async (db) => {
+    const [request] = await queryRows<{ status?: string; proposedBy?: string }>(db, "SELECT status, proposedBy FROM writeoff_request WHERE id = $id LIMIT 1;", { id: requestId });
+    if (!request || request.status !== "proposed") throw new Error("Скасувати можна лише запропоноване списання.");
+    const owner = normalizeRecordIdString(request.proposedBy ?? "");
+    if (owner !== normalizeRecordIdString(user.id) && !can(user, "writeoff:approve")) throw new Error("Скасовувати можна лише власну пропозицію.");
+    const timestamp = new Date().toISOString();
+    await db.query(
+      "BEGIN TRANSACTION; UPDATE $request MERGE { status: 'cancelled', cancelledBy: $actor, cancelledAt: $time, updatedAt: $time }; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;",
+      {
+        request: requestId,
+        actor: user.id,
+        time: timestamp,
+        log: { actorId: user.id, action: "writeoff.cancelled", entityType: "writeoff_request", entityId: normalizeRecordIdString(requestId), createdAt: timestamp },
+      },
+    );
+  });
+  revalidatePath("/writeoffs"); revalidatePath("/dashboard");
+}
+
+export async function completeWriteoffAction(formData: FormData) {
+  const user = await getCurrentUser(); if (!user) return;
+  assertPermission(user, "writeoff:propose");
+  const requestId = writeoffRequestId.parse(formData.get("requestId"));
+  let proposedBy = "";
+  await withDatabase(async (db) => {
+    const [request] = await queryRows<{ equipmentId?: string; status?: string; proposedBy?: string; reason?: string }>(db, "SELECT equipmentId, status, proposedBy, reason FROM writeoff_request WHERE id = $id LIMIT 1;", { id: requestId });
+    if (!request || request.status !== "approved" || !request.equipmentId) throw new Error("Завершити можна лише погоджене списання.");
+    const [equipment] = await queryRows<{ status?: string; currentRoomId?: string }>(db, "SELECT status, currentRoomId FROM equipment_instance WHERE id = $id LIMIT 1;", { id: toRecordId(request.equipmentId) });
+    if (!equipment) throw new Error("Екземпляр обладнання не знайдено.");
+    if (equipment.status === "written_off") throw new Error("Цей екземпляр уже списано.");
+    proposedBy = normalizeRecordIdString(request.proposedBy ?? "");
+    const timestamp = new Date().toISOString();
+    const movementId = generated("movement");
+    await db.query(
+      `BEGIN TRANSACTION;
+      UPDATE $equipment MERGE { status: 'written_off', archivedAt: $time, updatedAt: $time };
+      UPDATE $request MERGE { status: 'completed', completedBy: $actor, completedAt: $time, updatedAt: $time };
+      CREATE ${movementId} CONTENT $movement;
+      CREATE audit_log CONTENT $log;
+      COMMIT TRANSACTION;`,
+      {
+        equipment: toRecordId(request.equipmentId),
+        request: requestId,
+        actor: user.id,
+        time: timestamp,
+        movement: {
+          equipmentId: request.equipmentId,
+          movementType: "written_off",
+          fromRoomId: equipment.currentRoomId,
+          performedBy: user.id,
+          movementDate: timestamp,
+          reason: request.reason || "Фактичне списання погодженого екземпляра.",
+          createdAt: timestamp,
+        },
+        log: { actorId: user.id, action: "writeoff.completed", entityType: "writeoff_request", entityId: normalizeRecordIdString(requestId), createdAt: timestamp },
+      },
+    );
+  });
+  if (proposedBy && normalizeRecordIdString(proposedBy) !== normalizeRecordIdString(user.id)) await addNotification(proposedBy, "Списання завершено", "Фактичне списання підтверджено, а екземпляр вилучено з активного фонду.");
+  revalidatePath("/writeoffs"); revalidatePath("/equipment"); revalidatePath("/movements"); revalidatePath("/dashboard"); revalidatePath("/notifications");
 }

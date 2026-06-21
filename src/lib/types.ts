@@ -8,7 +8,7 @@ export type TransferRequestStatus = "draft" | "submitted" | "approved" | "reject
 export type RepairStatus = "reported" | "under_review" | "sent_to_repair" | "repaired" | "not_repairable" | "cancelled";
 export type AuditStatus = "planned" | "in_progress" | "completed" | "cancelled";
 export type AuditItemStatus = "pending" | "found" | "missing" | "extra" | "damaged" | "moved" | "misplaced" | "unknown";
-export type WriteoffStatus = "proposed" | "approved" | "rejected" | "completed";
+export type WriteoffStatus = "proposed" | "approved" | "rejected" | "completed" | "cancelled";
 export type RecordId = string;
 
 export interface UserRecord {
