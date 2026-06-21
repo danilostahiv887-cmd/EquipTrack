@@ -1384,6 +1384,116 @@ textarea[aria-invalid="true"] {
   gap:18px;
 }
 
+.audit-scan-stack {
+  display:grid;
+  gap:18px;
+}
+
+.audit-checked-panel {
+  display:grid;
+  gap:12px;
+  padding:16px;
+  border:1px solid rgb(27 44 56 / .18);
+  background:
+    radial-gradient(circle at 100% 0%, rgb(42 126 84 / .15), transparent 28%),
+    linear-gradient(135deg, rgb(255 253 248 / .9), rgb(22 105 114 / .09));
+  box-shadow:6px 6px 0 rgb(27 44 56 / .055);
+}
+
+.audit-checked-heading {
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:start;
+  color:var(--ink-blue);
+}
+
+.audit-checked-heading div {
+  display:grid;
+  gap:5px;
+}
+
+.audit-checked-heading strong {
+  font-size:1.05rem;
+}
+
+.audit-checked-heading span,
+.audit-checked-heading small {
+  color:#60727a;
+  line-height:1.4;
+}
+
+.audit-checked-list {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  max-height:230px;
+  overflow:auto;
+  padding-right:4px;
+  scrollbar-color:var(--signal) rgb(27 44 56 / .12);
+}
+
+.audit-checked-list > p {
+  grid-column:1 / -1;
+  margin:0;
+  padding:14px;
+  border:1px dashed rgb(27 44 56 / .22);
+  color:#60727a;
+  background:rgb(255 253 248 / .62);
+}
+
+.audit-checked-item {
+  position:relative;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:12px;
+  align-items:center;
+  padding:12px 12px 12px 15px;
+  border:1px solid rgb(27 44 56 / .16);
+  background:linear-gradient(135deg, rgb(255 253 248 / .86), rgb(239 231 191 / .27));
+  box-shadow:4px 4px 0 rgb(27 44 56 / .035);
+}
+
+.audit-checked-item::before {
+  content:"";
+  position:absolute;
+  left:0;
+  top:10px;
+  bottom:10px;
+  width:4px;
+  background:var(--green);
+}
+
+.audit-checked-item div {
+  display:grid;
+  gap:4px;
+  min-width:0;
+}
+
+.audit-checked-item strong {
+  color:var(--ink-blue);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.audit-checked-item span,
+.audit-checked-item small,
+.audit-checked-item em {
+  color:#60727a;
+  font-size:.78rem;
+  line-height:1.35;
+}
+
+.audit-checked-item em {
+  font-style:normal;
+  color:#8a4a24;
+}
+
+.audit-checked-item form {
+  margin:0;
+}
+
 .audit-search-panel {
   display:grid;
   grid-template-columns:minmax(235px,.8fr) minmax(320px,1.2fr);
@@ -1627,6 +1737,8 @@ textarea[aria-invalid="true"] {
 
   .audit-search-panel,
   .audit-equipment-picker,
+  .audit-checked-list,
+  .audit-checked-item,
   .audit-equipment-option,
   .audit-selected-equipment,
   .audit-scan-fields {

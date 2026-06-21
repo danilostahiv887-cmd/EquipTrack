@@ -39,6 +39,10 @@ const auditSchema = z.object({
 });
 const auditUpdateSchema = auditSchema.extend({ auditId: recordRef("Некоректний аудит.") });
 const auditStateSchema = z.object({ auditId: recordRef("Некоректний аудит.") });
+const auditItemStateSchema = z.object({
+  auditId: recordRef("Некоректний аудит."),
+  auditItemId: recordRef("Некоректний рядок перевірки."),
+});
 const auditScanSchema = z.object({
   auditId: recordRef("Некоректний аудит."),
   equipmentId: z.string().trim().optional(),
@@ -357,6 +361,10 @@ export async function scanAuditItemAction(_: WorkflowActionState, formData: Form
           { code },
         );
       if (!equipment) {
+        const [duplicateUnknown] = code
+          ? await queryRows<{ id: unknown }>(db, "SELECT id FROM audit_item WHERE auditId = $auditId AND scannedCode = $code LIMIT 1;", { auditId: auditText, code })
+          : [];
+        if (duplicateUnknown) throw new Error("Цей номер уже внесено до аудиту. Якщо запис помилковий — приберіть його у списку перевірених екземплярів.");
         const itemId = generated("audit_item");
         await db.query(`BEGIN TRANSACTION; CREATE ${itemId} CONTENT $item; UPDATE $audit MERGE { updatedAt: $time }; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;`, {
           audit: parsed.data.auditId,
@@ -383,8 +391,11 @@ export async function scanAuditItemAction(_: WorkflowActionState, formData: Form
       const resultStatus = expectedRoomId === auditRoomId
         ? (["damaged", "unusable"].includes(parsed.data.actualCondition) ? "damaged" : "found")
         : "misplaced";
-      const items = await queryRows<{ id: unknown; equipmentId?: string }>(db, "SELECT id, equipmentId FROM audit_item WHERE auditId = $auditId;", { auditId: auditText });
+      const items = await queryRows<{ id: unknown; equipmentId?: string; resultStatus?: string }>(db, "SELECT id, equipmentId, resultStatus FROM audit_item WHERE auditId = $auditId;", { auditId: auditText });
       const existing = items.find((item) => normalizeRecordIdString(item.equipmentId ?? "") === equipmentIdText);
+      if (existing?.id && existing.resultStatus && existing.resultStatus !== "pending") {
+        throw new Error("Цей екземпляр уже внесено до аудиту. Якщо запис помилковий — спочатку приберіть його у списку перевірених екземплярів.");
+      }
       const item = {
         auditId: auditText,
         equipmentId: equipmentIdText,
@@ -415,6 +426,36 @@ export async function scanAuditItemAction(_: WorkflowActionState, formData: Form
   }
   revalidatePath("/audits");
   return { success: "Екземпляр внесено до аудиту." };
+}
+
+export async function deleteAuditItemAction(formData: FormData) {
+  const user = await getCurrentUser(); if (!user) return;
+  assertPermission(user, "audit:manage");
+  const parsed = auditItemStateSchema.parse(Object.fromEntries(formData));
+  const timestamp = new Date().toISOString();
+  await withDatabase(async (db) => {
+    const auditText = normalizeRecordIdString(parsed.auditId);
+    const [audit] = await queryRows<{ id: unknown; roomId?: string; status: string }>(db, "SELECT id, roomId, status FROM audit WHERE id = $id LIMIT 1;", { id: parsed.auditId });
+    if (!audit) throw new Error("Аудит не знайдено.");
+    if (audit.status !== "in_progress") throw new Error("Прибирати внесені екземпляри можна лише в аудиті зі станом «У роботі».");
+    const [item] = await queryRows<{ id: unknown; auditId?: string; equipmentId?: string; expectedRoomId?: string; resultStatus?: string }>(
+      db,
+      "SELECT id, auditId, equipmentId, expectedRoomId, resultStatus FROM audit_item WHERE id = $id AND auditId = $auditId LIMIT 1;",
+      { id: parsed.auditItemId, auditId: auditText },
+    );
+    if (!item) throw new Error("Рядок перевірки не знайдено.");
+    const isExpectedForRoom = Boolean(item.equipmentId) && normalizeRecordIdString(item.expectedRoomId ?? "") === normalizeRecordIdString(audit.roomId ?? "");
+    const statement = isExpectedForRoom
+      ? "UPDATE $itemId SET resultStatus = 'pending', actualRoomId = NONE, actualCondition = NONE, note = NONE, checkedBy = NONE, checkedAt = NONE, updatedAt = $time;"
+      : "DELETE $itemId;";
+    await db.query(`BEGIN TRANSACTION; ${statement} UPDATE $audit MERGE { updatedAt: $time }; CREATE audit_log CONTENT $log; COMMIT TRANSACTION;`, {
+      itemId: parsed.auditItemId,
+      audit: parsed.auditId,
+      time: timestamp,
+      log: { actorId: user.id, action: "audit.item_removed", entityType: "audit", entityId: auditText, createdAt: timestamp },
+    });
+  });
+  revalidatePath("/audits");
 }
 
 export async function finishAuditAction(formData: FormData) {

@@ -76,6 +76,7 @@ export const dictionaryLabels: Record<string, string> = {
   "audit.cancelled": "Аудит скасовано",
   "audit.deleted": "Аудит видалено",
   "audit.item_scanned": "Перевірено екземпляр",
+  "audit.item_removed": "Прибрано екземпляр з аудиту",
   "transfer.completed": "Передачу завершено",
   staff: "Працівник",
   inventory_manager: "Менеджер обліку",

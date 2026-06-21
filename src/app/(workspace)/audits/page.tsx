@@ -39,6 +39,7 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
         actions={(row) => {
           const status = String(row.status ?? "");
           const id = recordId(row.id);
+          const auditItems = references.auditItems.filter((item) => recordId(item.auditId ?? "") === id);
           return (
             <>
               {!["completed", "cancelled"].includes(status) && (
@@ -73,7 +74,7 @@ export default async function AuditsPage({ searchParams }: { searchParams: Promi
                     triggerClassName="inline-dialog-trigger"
                     dialogClassName="dialog-wide audit-scan-dialog"
                   >
-                    <AuditScanForm auditId={row.id} auditRoomId={recordId(row.roomId ?? "")} equipment={references.equipment} />
+                    <AuditScanForm auditId={row.id} auditRoomId={recordId(row.roomId ?? "")} equipment={references.equipment} auditItems={auditItems} />
                   </Dialog>
                   <form action={finishAuditAction}>
                     <input type="hidden" name="auditId" value={id} />

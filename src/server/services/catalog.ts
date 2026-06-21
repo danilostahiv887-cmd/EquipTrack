@@ -42,6 +42,20 @@ export type Reference = { id: unknown; name: string; number?: string; fullName?:
 export type MovementReferences = {
   equipment: Array<Pick<EquipmentInstance, "id" | "equipmentId" | "equipmentName" | "inventoryNumber" | "serialNumber" | "currentRoomId" | "roomLabel" | "condition" | "status">>;
   rooms: Array<Pick<Room, "id" | "number" | "name">>;
+  auditItems: Array<{
+    id: unknown;
+    auditId?: string;
+    equipmentId?: string;
+    scannedCode?: string;
+    resultStatus?: string;
+    actualCondition?: string;
+    note?: string;
+    checkedAt?: string;
+    expectedRoomId?: string;
+    actualRoomId?: string;
+    expectedSerialNumber?: string;
+    expectedInventoryNumber?: string;
+  }>;
 };
 type AttachedFile = { id: unknown; name?: string; mimeType?: string; size?: number; kind?: string; createdAt?: string };
 type WorkflowRow = Record<string, unknown> & { id: unknown };
@@ -181,13 +195,15 @@ export async function getMovementReferences(): Promise<MovementReferences> {
       SELECT * FROM equipment_instance WHERE status != 'written_off' ORDER BY inventoryNumber;
       SELECT id, number, name FROM room WHERE status = 'active' ORDER BY number;
       SELECT id, fullName FROM user WHERE status = 'active' ORDER BY fullName;
+      SELECT id, auditId, equipmentId, scannedCode, resultStatus, actualCondition, note, checkedAt, expectedRoomId, actualRoomId, expectedSerialNumber, expectedInventoryNumber FROM audit_item ORDER BY checkedAt DESC;
     `);
     const models = batchRows<EquipmentModel>(result, 0);
     const rawInstances = batchRows<EquipmentInstance>(result, 1);
     const rooms = batchRows<MovementReferences["rooms"][number]>(result, 2);
     const users = batchRows<Reference>(result, 3);
+    const auditItems = batchRows<MovementReferences["auditItems"][number]>(result, 4);
     const equipment = withInstanceLabels(rawInstances, models, rooms, users).sort((left, right) => compact([left.equipmentName, left.inventoryNumber]).localeCompare(compact([right.equipmentName, right.inventoryNumber]), "uk"));
-    return { equipment, rooms };
+    return { equipment, rooms, auditItems };
   });
 }
 
